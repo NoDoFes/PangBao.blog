@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>胖宝 · 基地</title>
+    <!-- Font Awesome 图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+    <!-- 自定义样式 -->
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class="container">
+
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="nav-brand">Junkkle</div>
+            <div class="nav-right">
+                <div class="nav-links">
+                    <a href="#">首页</a>
+                    <a href="#">关于</a>
+                    <a href="#"><i class="fas fa-paw" style="margin-right: 6px; color: var(--accent);"></i>去联系胖宝</a>
+                </div>
+                <!-- 主题切换 -->
+                <div class="theme-switcher" id="themeSwitcher">
+                    <button class="theme-btn" data-theme-value="light" title="亮色"><i class="fas fa-sun"></i></button>
+                    <button class="theme-btn" data-theme-value="dark" title="暗色"><i class="fas fa-moon"></i></button>
+                    <button class="theme-btn" data-theme-value="system" title="跟随系统"><i class="fas fa-desktop"></i></button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- 主角 -->
+        <div class="hero">
+            <div class="hero-left">
+                <img class="avatar" src="https://api.dicebear.com/9.x/thumbs/svg?seed=胖宝&backgroundColor=2a1a3f&radius=50" alt="胖宝头像" />
+                <div class="nickname">胖宝</div>
+                <div class="tagline">🐾 胖宝速来，快到胖宝怀里来</div>
+            </div>
+            <div class="hero-right">
+                <h2><i class="fas fa-code"></i> 关于我</h2>
+                <p>
+                    喂kora!我是 <span class="highlight">胖宝</span>，一个想减肥但无法减肥的胖宝。
+                    将过往散布在传教组里的技术干货慢慢整合到这里来，<span class="highlight">技术干货</span>这一块与<span class="highlight">胖宝收藏</span>这一块，
+                    我尝试把<span class="highlight">小说更新</span>放到这里来,还有<span class="highlight">随笔</span>这一块,以后就在这里驻扎了。
+                </p>
+                <p style="margin-top: 0.6rem; font-size: 0.98rem; color: var(--text-muted);">
+                    <i class="fas fa-rocket" style="color: var(--accent); margin-right: 6px;"></i>
+                    well要长久定居的话还是得自己搓服务器吧kana
+                </p>
+            </div>
+        </div>
+
+        <!-- 磁贴 · 技术推荐 -->
+        <div class="tiles-section">
+            <div class="section-label">
+                <i class="fas fa-th-large" style="color: var(--accent);"></i> 软件 · 技术推荐
+            </div>
+            <div class="tiles-grid">
+                <div class="tile">
+                    <i class="fas fa-terminal"></i>
+                    <div class="tile-title">这是一个示例</div>
+                    <div class="tile-desc">胖宝你可以把运维工具放在这里</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 随笔栏目 -->
+        <div class="essays">
+            <div class="section-label">
+                <i class="fas fa-pen-fancy" style="color: var(--accent);"></i> 随笔
+            </div>
+            <div class="essay-list">
+                <a href="#" class="essay-item">
+                    <span class="essay-title">💡胖宝你可以把空间里的内容放到这里来</span>
+                    <span class="essay-date">2026-08-23</span>
+                </a>
+                <a href="#" class="essay-item">
+                    <span class="essay-title">💡胖宝你可以把自己折腾的经验放到这里来</span>
+                    <span class="essay-date">2026-08-23</span>
+                </a>
+                <a href="#" class="essay-item">
+                    <span class="essay-title">🚀关于spotify的使用</span>
+                    <span class="essay-date">2026-08-23</span>
+                </a>
+            </div>
+        </div>
+
+        <!-- 社交 (仅 GitHub & B站) -->
+        <div class="social-bar">
+            <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
+            <a href="#" aria-label="B站"><i class="fab fa-bilibili"></i></a>
+        </div>
+
+        <!-- 页脚 -->
+        <div class="footer">
+            &copy; 2026 <span>PangBao</span> · powerd by 画画力一族
+        </div>
+
+    </div>
+
+    <!-- 自定义脚本 -->
+    <script src="script.js"></script>
+</body>
+</html>
