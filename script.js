@@ -75,4 +75,32 @@
     });
 
     initTheme();
+
+    // ---------- 点击"去联系胖宝"：平滑滚动 + 依次发光 ----------
+    (function () {
+        const trigger = document.getElementById('contactTrigger');
+        const socialBar = document.getElementById('contact');
+        if (!trigger || !socialBar) return;
+
+        let timer = null;
+
+        trigger.addEventListener('click', function (e) {
+            e.preventDefault();
+
+            // 平滑滚动到社交栏
+            socialBar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+            // 移除 → 强制重排 → 再加，保证连续点击都能重播动画
+            socialBar.classList.remove('highlight');
+            void socialBar.offsetWidth;
+            socialBar.classList.add('highlight');
+
+            // 等三个动画都跑完再移除类，避免干扰鼠标 hover
+            clearTimeout(timer);
+            timer = setTimeout(() => {
+                socialBar.classList.remove('highlight');
+            }, 1800);
+        });
+    })();
+
 })();

@@ -16,11 +16,44 @@
       return res.text();
     })
     .then(md => {
-      article.innerHTML = marked.parse(md, { gfm: true, breaks: true });
+      // ========== 解析 front matter ==========
+      const { data, content } = parseFrontMatter(md);
 
-      // 用 md 里第一个 H1 当页面标题
+      // 渲染正文
+      article.innerHTML = marked.parse(content, { gfm: true, breaks: true });
+
+      // 标题：优先正文 H1，其次 front matter，最后兜底
       const h1 = article.querySelector('h1');
-      if (h1) document.title = h1.textContent.trim() + ' · 胖宝Essays';
+      const title = h1 ? h1.textContent.trim() : (data.title || '未命名');
+      if (h1) h1.remove(); // 用文章头里的标题替代
+
+      // 日期：front matter > 文件名
+      const date = data.date || extractDate(mdFile);
+
+      // 标签：数组或逗号分隔字符串
+      let tags = [];
+      if (Array.isArray(data.tags)) tags = data.tags;
+      else if (typeof data.tags === 'string' && data.tags) {
+        tags = data.tags.split(',').map(s => s.trim()).filter(Boolean);
+      }
+
+      // 字数 + 阅读时长
+      const wordCount = countWords(content);
+      const readTime = Math.max(1, Math.round(wordCount / 300));
+
+      // 构建并插入文章头
+      const header = buildPostHeader({
+        title,
+        description: data.description || '',
+        date,
+        tags,
+        wordCount,
+        readTime
+      });
+      article.insertBefore(header, article.firstChild);
+
+      // 页面标题
+      document.title = title + ' · 胖宝基地';
 
       // ========== 入场动画：正文元素滚动出现 ==========
       revealContent(article);
@@ -32,10 +65,119 @@
       article.innerHTML = '<p class="post-error">文章加载失败：' + err.message + '</p>';
     });
 
+  // ---------- 解析 front matter ----------
+  function parseFrontMatter(text) {
+    const match = text.match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*\r?\n?/);
+    if (!match) return { data: {}, content: text };
+
+    const yaml = match[1];
+    const content = text.slice(match[0].length);
+    const data = {};
+
+    yaml.split(/\r?\n/).forEach(line => {
+      const m = line.match(/^([A-Za-z_][\w-]*)\s*:\s*(.*)$/);
+      if (!m) return;
+
+      const key = m[1];
+      let value = m[2].trim();
+
+      // 数组格式 [a, b, c]
+      if (value.startsWith('[') && value.endsWith(']')) {
+        value = value
+          .slice(1, -1)
+          .split(',')
+          .map(s => s.trim().replace(/^["']|["']$/g, ''))
+          .filter(Boolean);
+      } else {
+        value = value.replace(/^["']|["']$/g, '');
+      }
+
+      data[key] = value;
+    });
+
+    return { data, content };
+  }
+
+  // ---------- 从文件名提取日期 ----------
+  function extractDate(filename) {
+    const m = filename.match(/(\d{4}-\d{2}-\d{2})/);
+    return m ? m[1] : '';
+  }
+
+  // ---------- 统计字数（中文 + 英文 + 数字） ----------
+  function countWords(md) {
+    const noCode = md.replace(/```[\s\S]*?```/g, '');
+    const noInlineCode = noCode.replace(/`[^`]*`/g, '');
+    const noUrl = noInlineCode.replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1');
+    const plain = noUrl.replace(/[#*_>~`\-|]/g, ' ');
+
+    const chinese = (plain.match(/[\u4e00-\u9fa5]/g) || []).length;
+    const english = (plain.match(/[a-zA-Z]+/g) || []).length;
+    const numbers = (plain.match(/\d+/g) || []).length;
+
+    return chinese + english + numbers;
+  }
+
+  // ---------- 构建文章头部 ----------
+  function buildPostHeader({ title, description, date, tags, wordCount, readTime }) {
+    const header = document.createElement('header');
+    header.className = 'post-header';
+
+    // 标题
+    const h1 = document.createElement('h1');
+    h1.className = 'post-title';
+    h1.textContent = title;
+    header.appendChild(h1);
+
+    // 描述
+    if (description) {
+      const desc = document.createElement('p');
+      desc.className = 'post-description';
+      desc.textContent = description;
+      header.appendChild(desc);
+    }
+
+    // 元信息
+    const meta = document.createElement('div');
+    meta.className = 'post-meta';
+
+    if (date) {
+      const el = document.createElement('span');
+      el.className = 'post-meta-item';
+      el.innerHTML = '<i class="far fa-calendar"></i> ' + date;
+      meta.appendChild(el);
+    }
+
+    if (tags.length) {
+      const el = document.createElement('span');
+      el.className = 'post-meta-item post-tags';
+      el.innerHTML = '<i class="fas fa-tags"></i> ' +
+        tags.map(t => `<a href="#" class="post-tag">#${t}</a>`).join(' ');
+      meta.appendChild(el);
+    }
+
+    if (wordCount) {
+      const el = document.createElement('span');
+      el.className = 'post-meta-item';
+      el.innerHTML = '<i class="far fa-file-alt"></i> ' + wordCount + ' 字';
+      meta.appendChild(el);
+    }
+
+    if (readTime) {
+      const el = document.createElement('span');
+      el.className = 'post-meta-item';
+      el.innerHTML = '<i class="far fa-clock"></i> 约 ' + readTime + ' 分钟';
+      meta.appendChild(el);
+    }
+
+    header.appendChild(meta);
+    return header;
+  }
+
   // ---------- 正文元素滚动出现 ----------
   function revealContent(container) {
     const items = container.querySelectorAll(
-      'h1, h2, h3, p, ul, ol, pre, blockquote, table, hr, img'
+      'h2, h3, p, ul, ol, pre, blockquote, table, hr, img'
     );
 
     // 不支持 IntersectionObserver 就直接全部显示

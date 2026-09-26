@@ -1,4 +1,4 @@
-/* Markdown 正文排版 */
+/* ==================== Markdown 正文排版 ==================== */
 .post {
   background: var(--card-bg);
   border: 1px solid var(--card-border);
@@ -123,13 +123,72 @@
   padding: 1rem 0;
 }
 
-@media (max-width: 780px) {
-  .post { padding: 1.5rem 1.2rem; border-radius: 28px; }
-  .post h1 { font-size: 1.6rem; }
-  .post h2 { font-size: 1.3rem; }
+/* ==================== 文章头部 ==================== */
+.post-header {
+  margin-bottom: 2.2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--card-border);
 }
 
-/* ---------- 右侧浮动目录（常驻展开） ---------- */
+/* 覆盖 .post h1 的默认样式，让标题更醒目、无下划线 */
+.post .post-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+  letter-spacing: -0.5px;
+  margin: 0 0 0.8rem;
+  padding: 0;
+  border-bottom: none;
+  /* 覆盖入场动画的初始隐藏状态 */
+  opacity: 1;
+  transform: none;
+}
+
+/* 覆盖 .post p 的默认样式 */
+.post .post-description {
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  line-height: 1.7;
+  margin: 0 0 1.2rem;
+  font-weight: 300;
+  opacity: 1;
+  transform: none;
+}
+
+.post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.4rem;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.post-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.post-meta-item i {
+  color: var(--accent);
+  font-size: 0.9rem;
+}
+
+.post-tag {
+  color: var(--accent);
+  text-decoration: none;
+  transition: 0.2s;
+  margin-right: 0.4rem;
+  border-bottom: none;
+}
+
+.post-tag:hover {
+  color: var(--text-primary);
+  text-decoration: underline;
+}
+
+/* ==================== 右侧浮动目录（常驻展开） ==================== */
 .toc-sidebar {
   position: fixed;
   right: 24px;
@@ -145,14 +204,13 @@
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   box-shadow: 0 10px 30px -10px var(--shadow-color);
-  width: 200px; /* 常驻宽度，可自行调大调小 */
-  max-height: 70vh; /* 目录太长时出现滚动条 */
+  width: 200px;
+  max-height: 70vh;
   overflow-y: auto;
   overflow-x: hidden;
   z-index: 999;
 }
 
-/* 去掉原来的:hover宽度变化 */
 .toc-item {
   display: flex;
   align-items: center;
@@ -161,18 +219,17 @@
   color: var(--text-muted);
   text-decoration: none;
   font-size: 0.9rem;
-  opacity: 1; /* 始终显示 */
+  opacity: 1;
   width: 100%;
   transition: color 0.3s ease;
   overflow: hidden;
-  text-overflow: ellipsis; /* 标题太长用省略号 */
+  text-overflow: ellipsis;
 }
 
 .toc-item:hover {
   color: var(--accent);
 }
 
-/* 圆点 */
 .toc-dot {
   width: 8px;
   height: 8px;
@@ -187,19 +244,17 @@
   transform: scale(1.3);
 }
 
-/* H3 二级缩进 */
 .toc-item.toc-h3 {
   padding-left: 20px;
 }
 
-/* 屏幕太小时自动隐藏，防止挡住正文 */
 @media (max-width: 900px) {
   .toc-sidebar {
     display: none;
   }
 }
 
-/* ---------- 子页面入场动画 ---------- */
+/* ==================== 子页面入场动画 ==================== */
 
 /* 1. 整页淡入 */
 @keyframes pageFadeIn {
@@ -228,8 +283,7 @@ body {
   animation-delay: 0.15s;
 }
 
-/* 3. 正文元素交错出现 */
-/* 初始隐藏，由 JS 加 .revealed 触发 */
+/* 3. 正文元素交错出现，由 JS 加 .revealed 触发 */
 .post h1,
 .post h2,
 .post h3,
@@ -283,5 +337,21 @@ body {
     transition: none !important;
     opacity: 1 !important;
     transform: none !important;
+  }
+}
+
+/* ==================== 响应式 ==================== */
+@media (max-width: 780px) {
+  .post {
+    padding: 1.5rem 1.2rem;
+    border-radius: 28px;
+  }
+  .post h1 { font-size: 1.6rem; }
+  .post h2 { font-size: 1.3rem; }
+  .post .post-title { font-size: 1.7rem; }
+  .post .post-description { font-size: 0.98rem; }
+  .post-meta {
+    font-size: 0.85rem;
+    gap: 0.4rem 1rem;
   }
 }

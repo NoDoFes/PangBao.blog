@@ -208,17 +208,6 @@ body {
         0 0 0 3px rgba(130, 210, 220, 0.25);
 }
 
-.nickname {
-    font-size: 3.2rem;
-    font-weight: 700;
-    margin: 0.8rem 0 0.2rem;
-    letter-spacing: -0.5px;
-    background: var(--brand-gradient);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-}
-
 .tagline {
     font-size: 1.25rem;
     font-weight: 300;
@@ -229,7 +218,7 @@ body {
     backdrop-filter: blur(2px);
     border: 1px solid rgba(100, 200, 210, 0.08);
     display: inline-block;
-    margin-top: 0.1rem;
+    margin-top: 0.8rem;
 }
 
 .hero-right {
@@ -526,3 +515,44 @@ body {
         padding: 0.8rem 1rem;
     }
 }
+
+/* ---------- 点击联系：依次发光提醒 ---------- */
+@keyframes contactGlow {
+    0% {
+        color: var(--text-muted);
+        background: var(--tile-bg);
+        transform: translateY(0);
+        border-color: var(--tile-border);
+        box-shadow: none;
+    }
+    30% {
+        color: var(--accent);
+        background: var(--tile-hover);
+        transform: translateY(-4px);
+        border-color: var(--accent);
+        box-shadow: 0 0 26px rgba(111, 203, 214, 0.55),
+                    0 0 0 6px rgba(111, 203, 214, 0.12);
+    }
+    70% {
+        color: var(--accent);
+        background: var(--tile-hover);
+        transform: translateY(-4px);
+        border-color: var(--accent);
+        box-shadow: 0 0 26px rgba(111, 203, 214, 0.55),
+                    0 0 0 6px rgba(111, 203, 214, 0.12);
+    }
+    100% {
+        color: var(--text-muted);
+        background: var(--tile-bg);
+        transform: translateY(0);
+        border-color: var(--tile-border);
+        box-shadow: none;
+    }
+}
+
+.social-bar.highlight a {
+    animation: contactGlow 0.9s ease-in-out both;
+}
+.social-bar.highlight a:nth-child(1) { animation-delay: 0s; }
+.social-bar.highlight a:nth-child(2) { animation-delay: 0.18s; }
+.social-bar.highlight a:nth-child(3) { animation-delay: 0.36s; }
