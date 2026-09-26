@@ -10,11 +10,15 @@
     mdFile = file.replace(/\.html?$/i, '.md');
   }
 
-  fetch(mdFile)
+  // 注意：本地 Python http.server 返回 .md 时不带 charset=utf-8，
+  // 浏览器会按 Latin-1 解析导致中文乱码。
+  // 所以用 arrayBuffer 拿二进制，再用 TextDecoder 强制 UTF-8 解码。
+  fetch(mdFile, { cache: 'no-cache' })
     .then(res => {
       if (!res.ok) throw new Error('HTTP ' + res.status + ' · ' + mdFile);
-      return res.text();
+      return res.arrayBuffer();
     })
+    .then(buf => new TextDecoder('utf-8').decode(buf))
     .then(md => {
       // ========== 解析 front matter ==========
       const { data, content } = parseFrontMatter(md);
@@ -208,14 +212,13 @@
 
     if (!tocContainer) return;
     if (headings.length === 0) {
-      tocContainer.style.display = 'none'; // 没有小标题就不显示侧边栏
+      tocContainer.style.display = 'none';
       return;
     }
 
-    tocContainer.innerHTML = ''; // 清空
+    tocContainer.innerHTML = '';
 
     headings.forEach((heading, index) => {
-      // 给正文标题加上 id，方便点击跳转
       const id = 'heading-' + index;
       heading.id = id;
 
@@ -228,7 +231,6 @@
         <span class="toc-text">${heading.textContent}</span>
       `;
 
-      // 点击跳转（平滑滚动）
       link.addEventListener('click', (e) => {
         e.preventDefault();
         document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
