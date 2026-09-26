@@ -355,3 +355,17 @@ body {
     gap: 0.4rem 1rem;
   }
 }
+
+/* ---------- 防止 FOUC：正文加载完成前不显示裸页面 ---------- */
+body {
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+body.loaded {
+  opacity: 1;
+}
+
+/* md 加载失败时也要显示，避免永久白屏 */
+body.load-error {
+  opacity: 1;
+}

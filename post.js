@@ -67,9 +67,14 @@
 
       // ========== 生成右侧目录 ==========
       buildTOC(article);
+
+      // ========== 内容就绪，淡入页面 ==========
+      document.body.classList.add('loaded');
     })
     .catch(err => {
       article.innerHTML = '<p class="post-error">文章加载失败：' + err.message + '</p>';
+      // 即使出错也要显示，避免永久透明
+      document.body.classList.add('load-error');
     });
 
   // ---------- 解析 front matter ----------
