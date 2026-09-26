@@ -2,12 +2,15 @@
   const article = document.getElementById('post-content');
   if (!article) return;
 
-  // 优先用 data-md；没写就从 URL 推导：essays/2026-10-01.html -> 2026-10-01.md
+  // 优先用 data-md；没写就从 URL 推导。
+  // 本地：essays/2026-10-01.html → 2026-10-01.md
+  // Cloudflare：essays/2026-10-01（后缀被去掉）→ 2026-10-01.md
   let mdFile = article.dataset.md;
   if (!mdFile) {
     const path = location.pathname;
-    const file = path.substring(path.lastIndexOf('/') + 1);
-    mdFile = file.replace(/\.html?$/i, '.md');
+    let file = path.substring(path.lastIndexOf('/') + 1);
+    file = file.replace(/\.html?$/i, '');   // 有 .html 就删，没有也无所谓
+    mdFile = file + '.md';                  // 统一加 .md
   }
 
   // 注意：本地 Python http.server 返回 .md 时不带 charset=utf-8，
