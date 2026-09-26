@@ -2,8 +2,9 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>胖宝 · 基地</title>
+    <title>胖宝基地</title>
     <!-- Font Awesome 图标库 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
     <!-- 自定义样式 -->
@@ -14,12 +15,12 @@
 
         <!-- 导航栏 -->
         <nav class="navbar">
-            <div class="nav-brand">Junkkle</div>
+            <div class="nav-brand">胖宝基地</div>
             <div class="nav-right">
                 <div class="nav-links">
-                    <a href="#">首页</a>
-                    <a href="#">关于</a>
-                    <a href="#"><i class="fas fa-paw" style="margin-right: 6px; color: var(--accent);"></i>去联系胖宝</a>
+                    <a href="index.html">首页</a>
+                    <a href="about.html">关于</a>
+                    <a href="#contact"><i class="fas fa-paw" style="margin-right: 6px; color: var(--accent);"></i>去联系胖宝</a>
                 </div>
                 <!-- 主题切换 -->
                 <div class="theme-switcher" id="themeSwitcher">
@@ -33,9 +34,9 @@
         <!-- 主角 -->
         <div class="hero">
             <div class="hero-left">
-                <img class="avatar" src="https://api.dicebear.com/9.x/thumbs/svg?seed=胖宝&backgroundColor=2a1a3f&radius=50" alt="胖宝头像" />
+                <img class="avatar" src="avatar.svg" alt="胖宝头像" />
                 <div class="nickname">胖宝</div>
-                <div class="tagline">🐾 胖宝速来，快到胖宝怀里来</div>
+                <div class="tagline">🐾 胖宝速来</div>
             </div>
             <div class="hero-right">
                 <h2><i class="fas fa-code"></i> 关于我</h2>
@@ -47,6 +48,11 @@
                 <p style="margin-top: 0.6rem; font-size: 0.98rem; color: var(--text-muted);">
                     <i class="fas fa-rocket" style="color: var(--accent); margin-right: 6px;"></i>
                     well要长久定居的话还是得自己搓服务器吧kana
+                </p>
+                <p style="margin-top: 0.8rem;">
+                    <a href="about.html" style="color: var(--accent); text-decoration: none; font-size: 0.95rem;">
+                        查看完整关于 →
+                    </a>
                 </p>
             </div>
         </div>
@@ -71,6 +77,10 @@
                 <i class="fas fa-pen-fancy" style="color: var(--accent);"></i> 随笔
             </div>
             <div class="essay-list">
+                <a href="essays/2026-10-01.html" class="essay-item">
+                    <span class="essay-title">胖宝之力</span>
+                    <span class="essay-date">2026-10-01</span>
+                </a>
                 <a href="#" class="essay-item">
                     <span class="essay-title">💡胖宝你可以把空间里的内容放到这里来</span>
                     <span class="essay-date">2026-08-23</span>
@@ -86,10 +96,17 @@
             </div>
         </div>
 
-        <!-- 社交 (仅 GitHub & B站) -->
-        <div class="social-bar">
-            <a href="#" aria-label="GitHub"><i class="fab fa-github"></i></a>
-            <a href="#" aria-label="B站"><i class="fab fa-bilibili"></i></a>
+        <!-- 社交 (GitHub / B站 / 邮箱) -->
+        <div class="social-bar" id="contact">
+            <a href="https://github.com/NoDoFes" target="_blank" aria-label="GitHub" data-tooltip="GitHub">
+                <i class="fab fa-github"></i>
+            </a>
+            <a href="https://space.bilibili.com/65582750" target="_blank" aria-label="B站" data-tooltip="B站">
+                <i class="fab fa-bilibili"></i>
+            </a>
+            <a href="mailto:NoDoFes@outlook.com" aria-label="邮箱" data-tooltip="NoDoFes@outlook.com">
+                <i class="fas fa-envelope"></i>
+            </a>
         </div>
 
         <!-- 页脚 -->

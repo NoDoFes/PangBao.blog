@@ -1,4 +1,3 @@
-(function() {
     // ---------- 主题切换逻辑 ----------
     const STORAGE_KEY = 'theme-preference';
     const html = document.documentElement;

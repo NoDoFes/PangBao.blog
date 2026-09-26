@@ -1,0 +1,287 @@
+/* Markdown 正文排版 */
+.post {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 36px;
+  padding: 2rem 2.4rem;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.02),
+              0 12px 28px -12px var(--shadow-color);
+  line-height: 1.8;
+  transition: background 0.3s, border-color 0.3s;
+}
+
+.post h1, .post h2, .post h3, .post h4 {
+  color: var(--text-primary);
+  margin: 1.8rem 0 0.8rem;
+  line-height: 1.3;
+  letter-spacing: -0.2px;
+}
+
+.post h1 {
+  font-size: 2rem;
+  padding-bottom: 0.6rem;
+  border-bottom: 1px solid var(--card-border);
+  margin-top: 0;
+}
+
+.post h2 { font-size: 1.5rem; }
+.post h3 { font-size: 1.2rem; }
+
+.post p {
+  color: var(--text-secondary);
+  margin: 0.9rem 0;
+}
+
+.post a {
+  color: var(--accent);
+  text-decoration: none;
+  border-bottom: 1px dashed var(--accent);
+}
+
+.post a:hover {
+  border-bottom-style: solid;
+}
+
+.post ul, .post ol {
+  color: var(--text-secondary);
+  padding-left: 1.6rem;
+  margin: 0.8rem 0;
+}
+
+.post li { margin: 0.3rem 0; }
+
+.post code {
+  background: rgba(120, 200, 210, 0.1);
+  color: var(--accent);
+  padding: 0.15em 0.4em;
+  border-radius: 6px;
+  font-size: 0.92em;
+}
+
+.post pre {
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--card-border);
+  border-radius: 18px;
+  padding: 1rem 1.2rem;
+  overflow-x: auto;
+  margin: 1rem 0;
+}
+
+.post pre code {
+  background: transparent;
+  color: var(--text-primary);
+  padding: 0;
+}
+
+.post blockquote {
+  border-left: 3px solid var(--accent);
+  padding-left: 1rem;
+  margin: 1rem 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.post img {
+  max-width: 100%;
+  border-radius: 18px;
+  margin: 1rem 0;
+}
+
+.post hr {
+  border: none;
+  border-top: 1px solid var(--card-border);
+  margin: 2rem 0;
+}
+
+.post table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.95rem;
+}
+
+.post th, .post td {
+  border: 1px solid var(--card-border);
+  padding: 0.5rem 0.8rem;
+  text-align: left;
+}
+
+.post th {
+  background: var(--tile-bg);
+  color: var(--text-primary);
+}
+
+.post-loading {
+  color: var(--text-muted);
+  text-align: center;
+  padding: 2rem 0;
+}
+
+.post-error {
+  color: #ff7a7a;
+  text-align: center;
+  padding: 1rem 0;
+}
+
+@media (max-width: 780px) {
+  .post { padding: 1.5rem 1.2rem; border-radius: 28px; }
+  .post h1 { font-size: 1.6rem; }
+  .post h2 { font-size: 1.3rem; }
+}
+
+/* ---------- 右侧浮动目录（常驻展开） ---------- */
+.toc-sidebar {
+  position: fixed;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 16px 20px;
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 24px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 10px 30px -10px var(--shadow-color);
+  width: 200px; /* 常驻宽度，可自行调大调小 */
+  max-height: 70vh; /* 目录太长时出现滚动条 */
+  overflow-y: auto;
+  overflow-x: hidden;
+  z-index: 999;
+}
+
+/* 去掉原来的:hover宽度变化 */
+.toc-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  opacity: 1; /* 始终显示 */
+  width: 100%;
+  transition: color 0.3s ease;
+  overflow: hidden;
+  text-overflow: ellipsis; /* 标题太长用省略号 */
+}
+
+.toc-item:hover {
+  color: var(--accent);
+}
+
+/* 圆点 */
+.toc-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--tile-icon);
+  flex-shrink: 0;
+  transition: all 0.3s ease;
+}
+
+.toc-item:hover .toc-dot {
+  background: var(--accent);
+  transform: scale(1.3);
+}
+
+/* H3 二级缩进 */
+.toc-item.toc-h3 {
+  padding-left: 20px;
+}
+
+/* 屏幕太小时自动隐藏，防止挡住正文 */
+@media (max-width: 900px) {
+  .toc-sidebar {
+    display: none;
+  }
+}
+
+/* ---------- 子页面入场动画 ---------- */
+
+/* 1. 整页淡入 */
+@keyframes pageFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+body {
+  animation: pageFadeIn 0.5s ease-out both;
+}
+
+/* 2. 文章卡片从下方浮起 */
+@keyframes cardRise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.post {
+  animation: cardRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.15s;
+}
+
+/* 3. 正文元素交错出现 */
+/* 初始隐藏，由 JS 加 .revealed 触发 */
+.post h1,
+.post h2,
+.post h3,
+.post p,
+.post ul,
+.post ol,
+.post pre,
+.post blockquote,
+.post table,
+.post hr,
+.post img {
+  opacity: 0;
+  transform: translateY(14px);
+  transition:
+    opacity 0.55s ease,
+    transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.post .revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 4. 右侧目录从右边滑入 */
+@keyframes tocSlideIn {
+  from {
+    opacity: 0;
+    transform: translate(40px, -50%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(0, -50%);
+  }
+}
+
+.toc-sidebar {
+  animation: tocSlideIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: 0.3s;
+}
+
+/* 5. 尊重系统"减少动画"偏好 */
+@media (prefers-reduced-motion: reduce) {
+  body,
+  .post,
+  .toc-sidebar,
+  .post h1, .post h2, .post h3,
+  .post p, .post ul, .post ol,
+  .post pre, .post blockquote,
+  .post table, .post hr, .post img {
+    animation: none !important;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
