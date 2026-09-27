@@ -1,26 +1,22 @@
 /* ==================== Markdown 正文排版 ==================== */
 .post {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 36px;
-  padding: 2rem 2.4rem;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.02),
-              0 12px 28px -12px var(--shadow-color);
+  background: transparent;
+  border: none;
+  padding: 0;
   line-height: 1.8;
-  transition: background 0.3s, border-color 0.3s;
 }
 
 .post h1, .post h2, .post h3, .post h4 {
   color: var(--text-primary);
   margin: 1.8rem 0 0.8rem;
   line-height: 1.3;
-  letter-spacing: -0.2px;
+  letter-spacing: -0.02em;
 }
 
 .post h1 {
   font-size: 2rem;
   padding-bottom: 0.6rem;
-  border-bottom: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--border-subtle);
   margin-top: 0;
 }
 
@@ -38,9 +34,7 @@
   border-bottom: 1px dashed var(--accent);
 }
 
-.post a:hover {
-  border-bottom-style: solid;
-}
+.post a:hover { border-bottom-style: solid; }
 
 .post ul, .post ol {
   color: var(--text-secondary);
@@ -51,7 +45,7 @@
 .post li { margin: 0.3rem 0; }
 
 .post code {
-  background: rgba(120, 200, 210, 0.1);
+  background: var(--accent-soft);
   color: var(--accent);
   padding: 0.15em 0.4em;
   border-radius: 6px;
@@ -60,11 +54,15 @@
 
 .post pre {
   background: rgba(0, 0, 0, 0.35);
-  border: 1px solid var(--card-border);
+  border: 1px solid var(--border-subtle);
   border-radius: 18px;
   padding: 1rem 1.2rem;
   overflow-x: auto;
   margin: 1rem 0;
+}
+
+[data-theme="light"] .post pre {
+  background: rgba(0, 0, 0, 0.06);
 }
 
 .post pre code {
@@ -89,7 +87,7 @@
 
 .post hr {
   border: none;
-  border-top: 1px solid var(--card-border);
+  border-top: 1px solid var(--border-subtle);
   margin: 2rem 0;
 }
 
@@ -101,13 +99,13 @@
 }
 
 .post th, .post td {
-  border: 1px solid var(--card-border);
+  border: 1px solid var(--border-subtle);
   padding: 0.5rem 0.8rem;
   text-align: left;
 }
 
 .post th {
-  background: var(--tile-bg);
+  background: var(--bg-tertiary);
   color: var(--text-primary);
 }
 
@@ -125,27 +123,24 @@
 
 /* ==================== 文章头部 ==================== */
 .post-header {
-  margin-bottom: 2.2rem;
+  margin-bottom: 2rem;
   padding-bottom: 1.5rem;
-  border-bottom: 1px solid var(--card-border);
+  border-bottom: 1px solid var(--border-subtle);
 }
 
-/* 覆盖 .post h1 的默认样式，让标题更醒目、无下划线 */
 .post .post-title {
   font-size: 2.2rem;
   font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.3;
-  letter-spacing: -0.5px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
   margin: 0 0 0.8rem;
   padding: 0;
   border-bottom: none;
-  /* 覆盖入场动画的初始隐藏状态 */
   opacity: 1;
   transform: none;
 }
 
-/* 覆盖 .post p 的默认样式 */
 .post .post-description {
   font-size: 1.05rem;
   color: var(--text-muted);
@@ -188,27 +183,32 @@
   text-decoration: underline;
 }
 
-/* ==================== 右侧浮动目录（常驻展开） ==================== */
+/* ==================== 右侧目录 ==================== */
 .toc-sidebar {
   position: fixed;
   right: 24px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
+  top: 90px;
   flex-direction: column;
   gap: 14px;
   padding: 16px 20px;
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 24px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 10px 30px -10px var(--shadow-color);
+  box-shadow: var(--shadow-md);
   width: 200px;
-  max-height: 70vh;
+  max-height: calc(100vh - 120px);
   overflow-y: auto;
   overflow-x: hidden;
-  z-index: 999;
+  z-index: 100;
+  display: none;
+}
+
+@media (min-width: 1024px) {
+  .toc-sidebar {
+    display: flex;
+  }
 }
 
 .toc-item {
@@ -219,7 +219,6 @@
   color: var(--text-muted);
   text-decoration: none;
   font-size: 0.9rem;
-  opacity: 1;
   width: 100%;
   transition: color 0.3s ease;
   overflow: hidden;
@@ -234,13 +233,12 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--tile-icon);
+  background: var(--accent);
   flex-shrink: 0;
   transition: all 0.3s ease;
 }
 
 .toc-item:hover .toc-dot {
-  background: var(--accent);
   transform: scale(1.3);
 }
 
@@ -248,53 +246,64 @@
   padding-left: 20px;
 }
 
-@media (max-width: 900px) {
-  .toc-sidebar {
-    display: none;
+/* ==================== 回到顶部按钮 ==================== */
+.back-to-top {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--bg-secondary);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(10px);
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 999;
+  box-shadow: var(--shadow-md);
+  padding: 0;
+}
+
+.back-to-top.visible {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+.back-to-top:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 780px) {
+  .back-to-top {
+    right: 16px;
+    bottom: 16px;
+    width: 42px;
+    height: 42px;
   }
 }
 
-/* ==================== 子页面入场动画 ==================== */
-
-/* 1. 整页淡入 */
+/* ==================== 入场动画 ==================== */
 @keyframes pageFadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 
-.container {
-  animation: pageFadeIn 0.5s ease-out both;
-}
-
-/* 2. 文章卡片从下方浮起 */
-@keyframes cardRise {
-  from {
-    opacity: 0;
-    transform: translateY(24px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.post {
-  animation: cardRise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: 0.15s;
-}
-
-/* 3. 正文元素交错出现，由 JS 加 .revealed 触发 */
-.post h1,
-.post h2,
-.post h3,
-.post p,
-.post ul,
-.post ol,
-.post pre,
-.post blockquote,
-.post table,
-.post hr,
-.post img {
+.post h1, .post h2, .post h3,
+.post p, .post ul, .post ol,
+.post pre, .post blockquote,
+.post table, .post hr, .post img {
   opacity: 0;
   transform: translateY(14px);
   transition:
@@ -307,28 +316,18 @@
   transform: translateY(0);
 }
 
-/* 4. 右侧目录从右边滑入 */
-@keyframes tocSlideIn {
-  from {
-    opacity: 0;
-    transform: translate(40px, -50%);
-  }
-  to {
-    opacity: 1;
-    transform: translate(0, -50%);
+/* ==================== 响应式 ==================== */
+@media (max-width: 780px) {
+  .post .post-title { font-size: 1.7rem; }
+  .post .post-description { font-size: 0.98rem; }
+  .post-meta {
+    font-size: 0.85rem;
+    gap: 0.4rem 1rem;
   }
 }
 
-.toc-sidebar {
-  animation: tocSlideIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: 0.3s;
-}
-
-/* 5. 尊重系统"减少动画"偏好 */
+/* ==================== 减少动画 ==================== */
 @media (prefers-reduced-motion: reduce) {
-  .container,
-  .post,
-  .toc-sidebar,
   .post h1, .post h2, .post h3,
   .post p, .post ul, .post ol,
   .post pre, .post blockquote,
@@ -337,21 +336,5 @@
     transition: none !important;
     opacity: 1 !important;
     transform: none !important;
-  }
-}
-
-/* ==================== 响应式 ==================== */
-@media (max-width: 780px) {
-  .post {
-    padding: 1.5rem 1.2rem;
-    border-radius: 28px;
-  }
-  .post h1 { font-size: 1.6rem; }
-  .post h2 { font-size: 1.3rem; }
-  .post .post-title { font-size: 1.7rem; }
-  .post .post-description { font-size: 0.98rem; }
-  .post-meta {
-    font-size: 0.85rem;
-    gap: 0.4rem 1rem;
   }
 }

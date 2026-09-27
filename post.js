@@ -2,7 +2,6 @@ window.PB = window.PB || {};
 
 (function () {
 
-  // ---------- 解析 front matter ----------
   function parseFrontMatter(text) {
     const match = text.match(/^---\s*\r?\n([\s\S]*?)\r?\n---\s*\r?\n?/);
     if (!match) return { data: {}, content: text };
@@ -112,16 +111,22 @@ window.PB = window.PB || {};
   }
 
   function buildTOC(container) {
+    if (!container) return;
     const headings = container.querySelectorAll('h2, h3');
     const tocContainer = document.getElementById('toc-sidebar');
 
     if (!tocContainer) return;
+
     if (headings.length === 0) {
+      tocContainer.innerHTML = '';
       tocContainer.style.display = 'none';
       return;
     }
 
     tocContainer.innerHTML = '';
+    // 清掉内联 display，让 CSS 媒体查询接管
+    tocContainer.style.display = '';
+
     headings.forEach((heading, index) => {
       const id = 'heading-' + index;
       heading.id = id;
@@ -135,13 +140,40 @@ window.PB = window.PB || {};
       `;
       link.addEventListener('click', (e) => {
         e.preventDefault();
-        document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        const top = document.getElementById(id).getBoundingClientRect().top + window.scrollY - 80;
+        window.scrollTo({ top, behavior: 'smooth' });
       });
       tocContainer.appendChild(link);
     });
   }
 
-  // ---------- 对外暴露的渲染函数 ----------
+  function initBackToTop() {
+    if (document.querySelector('.back-to-top')) return;
+
+    const btn = document.createElement('button');
+    btn.className = 'back-to-top';
+    btn.setAttribute('aria-label', '回到顶部');
+    btn.innerHTML = '<i class="fas fa-arrow-up"></i>';
+    document.body.appendChild(btn);
+
+    let ticking = false;
+    const update = () => {
+      btn.classList.toggle('visible', window.scrollY > 200);
+      ticking = false;
+    };
+    window.addEventListener('scroll', () => {
+      if (!ticking) {
+        requestAnimationFrame(update);
+        ticking = true;
+      }
+    }, { passive: true });
+    update();
+
+    btn.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
   function renderPost(container, mdPath, options) {
     options = options || {};
     const showHeader = options.showHeader !== false;
@@ -195,6 +227,10 @@ window.PB = window.PB || {};
   }
 
   PB.renderPost = renderPost;
+  PB.buildTOC = buildTOC;
+
+  // ---------- 回到顶部按钮（所有页面都启用） ----------
+  initBackToTop();
 
   // ---------- 子页面自动初始化 ----------
   if (document.getElementById('post-content')) {
