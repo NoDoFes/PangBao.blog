@@ -29,6 +29,7 @@
     <link rel="stylesheet" href="vendor/font-awesome/css/all.min.css" />
     <!-- 自定义样式 -->
     <link rel="stylesheet" href="style.css" />
+    <link rel="stylesheet" href="post.css" />
 </head>
 <body>
     <div class="container">
@@ -85,28 +86,40 @@
             </div>
         </div>
 
-        <!-- 随笔栏目 -->
+        <!-- 随笔栏目（展开式） -->
         <div class="essays">
             <div class="section-label">
                 <i class="fas fa-pen-fancy" style="color: var(--accent);"></i> 随笔
             </div>
             <div class="essay-list">
-                <a href="essays/2026-10-01.html" class="essay-item">
-                    <span class="essay-title">胖宝之力</span>
-                    <span class="essay-date">2026-10-01</span>
-                </a>
-                <a href="#" class="essay-item">
-                    <span class="essay-title">💡胖宝你可以把空间里的内容放到这里来</span>
-                    <span class="essay-date">2026-08-23</span>
-                </a>
-                <a href="#" class="essay-item">
-                    <span class="essay-title">💡胖宝你可以把自己折腾的经验放到这里来</span>
-                    <span class="essay-date">2026-08-23</span>
-                </a>
-                <a href="#" class="essay-item">
-                    <span class="essay-title">🚀关于spotify的使用</span>
-                    <span class="essay-date">2026-08-23</span>
-                </a>
+                <details class="essay-item" data-md="essays/2026-10-01.md">
+                    <summary>
+                        <span class="essay-title">胖宝之力</span>
+                        <span class="essay-date">2026-10-01</span>
+                    </summary>
+                    <div class="essay-body"></div>
+                </details>
+                <details class="essay-item" data-md="essays/2026-08-23-2.md">
+                    <summary>
+                        <span class="essay-title">💡胖宝你可以把空间里的内容放到这里来</span>
+                        <span class="essay-date">2026-08-23</span>
+                    </summary>
+                    <div class="essay-body"></div>
+                </details>
+                <details class="essay-item" data-md="essays/2026-08-23-3.md">
+                    <summary>
+                        <span class="essay-title">💡胖宝你可以把自己折腾的经验放到这里来</span>
+                        <span class="essay-date">2026-08-23</span>
+                    </summary>
+                    <div class="essay-body"></div>
+                </details>
+                <details class="essay-item" data-md="essays/2026-08-23-4.md">
+                    <summary>
+                        <span class="essay-title">🚀关于spotify的使用</span>
+                        <span class="essay-date">2026-08-23</span>
+                    </summary>
+                    <div class="essay-body"></div>
+                </details>
             </div>
         </div>
 
@@ -130,7 +143,9 @@
 
     </div>
 
-    <!-- 自定义脚本 -->
+    <!-- 脚本 -->
+    <script src="vendor/marked.min.js"></script>
+    <script src="post.js"></script>
     <script src="script.js"></script>
 </body>
 </html>

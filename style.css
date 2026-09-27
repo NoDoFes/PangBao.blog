@@ -263,7 +263,7 @@ body {
     font-weight: 450;
 }
 
-/* ---------- 磁贴 & 随笔 ---------- */
+/* ---------- 磁贴 ---------- */
 .tiles-section {
     margin: 2.8rem 0 2rem;
 }
@@ -333,7 +333,7 @@ body {
     line-height: 1.4;
 }
 
-/* ---------- 随笔 ---------- */
+/* ---------- 随笔（展开式） ---------- */
 .essays {
     margin-top: 2.5rem;
 }
@@ -345,33 +345,78 @@ body {
 }
 
 .essay-item {
+    border-radius: 40px;
+    border: 1px solid var(--tile-border);
+    background: var(--tile-bg);
+    transition: 0.3s ease;
+    overflow: hidden;
+}
+
+.essay-item[open] {
+    border-radius: 24px;
+    background: var(--card-bg);
+    border-color: var(--card-border);
+}
+
+.essay-item summary {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: var(--tile-bg);
     padding: 0.8rem 1.5rem;
-    border-radius: 40px;
-    border: 1px solid var(--tile-border);
-    transition: 0.2s;
+    cursor: pointer;
+    list-style: none;
     color: var(--text-secondary);
-    text-decoration: none;
-}
-
-.essay-item:hover {
-    background: var(--tile-hover);
-    color: var(--text-primary);
-    border-color: var(--accent);
-    transform: translateX(6px);
-}
-
-.essay-item .essay-title {
+    transition: 0.2s;
     font-weight: 500;
     font-size: 1.05rem;
+}
+
+.essay-item summary::-webkit-details-marker {
+    display: none;
+}
+
+.essay-item summary:hover {
+    background: var(--tile-hover);
+    color: var(--text-primary);
+}
+
+.essay-item[open] summary {
+    border-bottom: 1px solid var(--card-border);
+    color: var(--text-primary);
 }
 
 .essay-item .essay-date {
     font-size: 0.85rem;
     color: var(--text-muted);
+}
+
+.essay-body {
+    padding: 1.5rem 2rem 2rem;
+    animation: essayReveal 0.4s ease-out both;
+}
+
+@keyframes essayReveal {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* 骨架屏 */
+.essay-skeleton {
+    padding: 0.5rem 0;
+}
+.essay-skeleton-line {
+    height: 14px;
+    border-radius: 6px;
+    background: var(--tile-bg);
+    margin-bottom: 12px;
+    animation: skeletonPulse 1.4s ease-in-out infinite;
+}
+.essay-skeleton-line:nth-child(2) { width: 80%; }
+.essay-skeleton-line:nth-child(3) { width: 60%; }
+
+@keyframes skeletonPulse {
+    0%, 100% { opacity: 0.4; }
+    50%      { opacity: 1; }
 }
 
 /* ---------- 社交 ---------- */
@@ -456,9 +501,6 @@ body {
         width: 100%;
         padding: 1.5rem 1.2rem;
     }
-    .nickname {
-        font-size: 2.6rem;
-    }
     .avatar {
         width: 120px;
         height: 120px;
@@ -471,6 +513,9 @@ body {
         width: 50px;
         height: 50px;
         font-size: 1.6rem;
+    }
+    .essay-body {
+        padding: 1rem 1.2rem 1.4rem;
     }
 }
 
@@ -487,9 +532,6 @@ body {
     }
     .nav-links a {
         font-size: 0.95rem;
-    }
-    .nickname {
-        font-size: 2.2rem;
     }
     .tagline {
         font-size: 1rem;
@@ -508,11 +550,14 @@ body {
     .tile i {
         font-size: 1.8rem;
     }
-    .essay-item {
+    .essay-item summary {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.2rem;
         padding: 0.8rem 1rem;
+    }
+    .essay-item[open] {
+        border-radius: 18px;
     }
 }
 
