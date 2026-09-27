@@ -2,10 +2,29 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>胖宝关于</title>
-  <!-- 改为本地 Font Awesome -->
+
+  <!-- 防止白屏：CSS 加载前先给正确的背景色 -->
+  <style>
+    html { background: #1a1029; }
+    html[data-theme="light"] { background: #faf0e6; }
+    body { margin: 0; }
+  </style>
+
+  <!-- 尽早应用主题，避免深浅色闪烁 -->
+  <script>
+    (function () {
+      var t = localStorage.getItem('theme-preference') || 'system';
+      var d = t === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : t;
+      document.documentElement.setAttribute('data-theme', d);
+    })();
+  </script>
+
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <!-- 本地 Font Awesome -->
   <link rel="stylesheet" href="vendor/font-awesome/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="post.css" />
