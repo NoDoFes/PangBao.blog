@@ -2,10 +2,30 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>胖宝基地</title>
-    <!-- 改为本地 Font Awesome -->
+
+    <!-- 防止白屏：CSS 加载前先给正确的背景色 -->
+    <style>
+        html { background: #1a1029; }
+        html[data-theme="light"] { background: #faf0e6; }
+        body { margin: 0; }
+        .avatar { width: 140px; height: 140px; border-radius: 50%; object-fit: cover; }
+    </style>
+
+    <!-- 尽早应用主题，避免深浅色闪烁 -->
+    <script>
+        (function () {
+            var t = localStorage.getItem('theme-preference') || 'system';
+            var d = t === 'system'
+                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+                : t;
+            document.documentElement.setAttribute('data-theme', d);
+        })();
+    </script>
+
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+    <!-- 本地 Font Awesome -->
     <link rel="stylesheet" href="vendor/font-awesome/css/all.min.css" />
     <!-- 自定义样式 -->
     <link rel="stylesheet" href="style.css" />
@@ -34,7 +54,7 @@
         <!-- 主角 -->
         <div class="hero">
             <div class="hero-left">
-                <img class="avatar" src="avatar.svg" alt="胖宝头像" />
+                <img class="avatar" src="avatar.svg" alt="胖宝头像" width="140" height="140" />
                 <div class="tagline">🐾 胖宝速来</div>
             </div>
             <div class="hero-right">
@@ -47,6 +67,7 @@
                 <p style="margin-top: 0.6rem; font-size: 0.98rem; color: var(--text-muted);">
                     <i class="fas fa-rocket" style="color: var(--accent); margin-right: 6px;"></i>
                     well要长久定居的话还是得自己搓服务器吧kana
+                </p>
             </div>
         </div>
 
