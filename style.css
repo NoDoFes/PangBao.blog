@@ -503,6 +503,33 @@ body {
 }
 
 /* ============================================
+   【新增】"在新页面打开" 小图标
+   ============================================ */
+.essay-open-link {
+    flex-shrink: 0;
+    margin-left: 0.3rem;
+    padding: 0.35rem;
+    color: var(--text-muted);
+    text-decoration: none;
+    border-radius: var(--radius-sm);
+    opacity: 0;
+    transition: opacity 0.2s ease, color 0.2s ease, background 0.2s ease;
+    font-size: 0.85em;
+    line-height: 1;
+}
+
+.essay-file > summary:hover .essay-open-link,
+.essay-file > summary:focus-within .essay-open-link {
+    opacity: 0.7;
+}
+
+.essay-open-link:hover {
+    opacity: 1 !important;
+    color: var(--accent);
+    background: var(--bg-hover);
+}
+
+/* ============================================
    页脚
    ============================================ */
 .footer {
@@ -577,6 +604,9 @@ body {
     }
 
     .tree-meta { font-size: 0.8rem; }
+
+    /* 【新增】手机上"在新页面打开"图标常驻可点 */
+    .essay-open-link { opacity: 0.5; }
 }
 
 @media (max-width: 460px) {
@@ -598,7 +628,7 @@ body {
 }
 
 /* ============================================
-   页面切换动画（改到 .container 上，避免影响 fixed 元素）
+   页面切换动画
    ============================================ */
 @keyframes pageEnter {
     from { opacity: 0; transform: translateY(6px); }
@@ -615,7 +645,6 @@ body {
 
 /* ============================================
    面包屑增量动画
-   用 clip-path 做"揭开/收进"，元素宽度始终是自然的
    ============================================ */
 .crumb-dynamic-sep,
 .crumb.crumb-dynamic {

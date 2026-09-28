@@ -2,17 +2,16 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>胖宝关于</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>关于 · 胖宝基地</title>
 
-  <!-- 防止白屏：CSS 加载前先给正确的背景色 -->
   <style>
-    html { background: #1a1029; }
-    html[data-theme="light"] { background: #faf0e6; }
+    :root { color-scheme: dark light; }
+    html { background: #16111f; }
+    html[data-theme="light"] { background: #f7f2eb; }
     body { margin: 0; }
   </style>
 
-  <!-- 尽早应用主题，避免深浅色闪烁 -->
   <script>
     (function () {
       var t = localStorage.getItem('theme-preference') || 'system';
@@ -24,47 +23,61 @@
   </script>
 
   <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-  <!-- 本地 Font Awesome -->
   <link rel="stylesheet" href="vendor/font-awesome/css/all.min.css" />
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="post.css" />
 </head>
 <body>
-  <aside id="toc-sidebar" class="toc-sidebar"></aside>
 
-  <div class="container">
+  <nav class="topbar">
+    <a class="nav-brand" href="index.html" style="text-decoration:none;">胖宝基地</a>
+    <div class="breadcrumb">
+      <a class="crumb crumb-home" href="index.html" style="text-decoration:none;">
+        <i class="fas fa-home"></i> 首页
+      </a>
+      <span class="crumb-sep">›</span>
+      <span class="crumb crumb-file">关于</span>
+    </div>
+    <div class="theme-switcher" id="themeSwitcher">
+      <button class="theme-btn" data-theme-value="light" title="亮色" aria-label="亮色"><i class="fas fa-sun"></i></button>
+      <button class="theme-btn" data-theme-value="dark" title="暗色" aria-label="暗色"><i class="fas fa-moon"></i></button>
+      <button class="theme-btn" data-theme-value="system" title="跟随系统" aria-label="跟随系统"><i class="fas fa-desktop"></i></button>
+    </div>
+  </nav>
 
-    <nav class="navbar">
-      <div class="nav-brand">胖宝基地</div>
-      <div class="nav-right">
-        <div class="nav-links">
-          <a href="index.html">首页</a>
-          <a href="about.html">关于</a>
-          <a href="index.html#contact">
-            <i class="fas fa-paw" style="margin-right: 6px; color: var(--accent);"></i>去联系胖宝
-          </a>
-        </div>
-        <div class="theme-switcher" id="themeSwitcher">
-          <button class="theme-btn" data-theme-value="light" title="亮色"><i class="fas fa-sun"></i></button>
-          <button class="theme-btn" data-theme-value="dark" title="暗色"><i class="fas fa-moon"></i></button>
-          <button class="theme-btn" data-theme-value="system" title="跟随系统"><i class="fas fa-desktop"></i></button>
-        </div>
-      </div>
-    </nav>
+  <main class="container">
+    <article class="post">
+      <header class="post-header">
+        <h1 class="post-title">关于胖宝</h1>
+        <p class="post-description">一只想减肥但一直减不下来的胖宝。</p>
+      </header>
 
-    <article class="post" id="post-content">
-      <p class="post-loading">加载中…</p>
+      <h2>这家伙是谁</h2>
+      <p>网名胖宝，偶尔写点技术，偶尔写点随笔，偶尔写点小说，偶尔收藏一些奇怪的东西。总之这里什么都堆一点。</p>
+
+      <h2>在做的事</h2>
+      <ul>
+        <li>折腾家里的旧电脑，把它改造成 NAS + 自托管服务栈</li>
+        <li>偶尔画点画，运营着一个叫「画画力一族」的小圈子</li>
+        <li>把踩过的坑都记下来，万一有人用得上呢</li>
+      </ul>
+
+      <h2>联系我</h2>
+      <p>可以通过下面的方式找到胖宝：</p>
+      <ul>
+        <li>GitHub：<a href="https://github.com/NoDoFes" target="_blank">NoDoFes</a></li>
+        <li>B 站：<a href="https://space.bilibili.com/65582750" target="_blank">胖宝的 B 站</a></li>
+        <li>邮箱：<a href="mailto:NoDoFes@outlook.com">NoDoFes@outlook.com</a></li>
+      </ul>
+
+      <blockquote>想减肥但减不下来的胖宝，欢迎来玩。</blockquote>
     </article>
 
-    <div class="footer">
+    <footer class="footer">
       &copy; 2026 <span>PangBao</span> · powerd by 画画力一族
-    </div>
+    </footer>
+  </main>
 
-  </div>
-
-  <!-- 改为本地 marked 和本地脚本，使用 defer 避免阻塞 -->
-  <script defer src="vendor/marked.min.js"></script>
   <script defer src="script.js"></script>
-  <script defer src="post.js"></script>
 </body>
 </html>

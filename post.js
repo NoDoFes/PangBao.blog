@@ -236,11 +236,20 @@ window.PB = window.PB || {};
   if (document.getElementById('post-content')) {
     const article = document.getElementById('post-content');
     let mdFile = article.dataset.md;
+
+    /* 【新增】1) 优先 URL 参数 ?md=essays/xxx.md（article.html 用） */
+    if (!mdFile) {
+      const params = new URLSearchParams(location.search);
+      mdFile = params.get('md');
+    }
+
+    /* 2) 回退：从文件名推导（essays/2026-10-01.html 这类旧页用） */
     if (!mdFile) {
       let file = location.pathname.substring(location.pathname.lastIndexOf('/') + 1);
       file = file.replace(/\.html?$/i, '');
       mdFile = file + '.md';
     }
+
     renderPost(article, mdFile);
   }
 })();

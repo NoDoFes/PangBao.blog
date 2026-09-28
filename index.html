@@ -30,7 +30,6 @@
 </head>
 <body>
 
-    <!-- 右侧 TOC（首页展开文章时显示） -->
     <aside id="toc-sidebar" class="toc-sidebar"></aside>
 
     <nav class="topbar" id="topbar">
@@ -70,32 +69,8 @@
                 <i class="fas fa-folder-tree" style="color: var(--accent);"></i> 内容
             </div>
 
-            <div class="file-tree">
-                <details class="tree-folder">
-                    <summary>
-                        <i class="fas fa-folder tree-icon"></i>
-                        <span class="tree-label">随笔</span>
-                    </summary>
-                    <div class="tree-children">
-                        <details class="essay-file" data-md="essays/2026-10-01.md">
-                            <summary>
-                                <i class="fas fa-file-alt tree-icon"></i>
-                                <span class="tree-label">胖宝之力</span>
-                                <span class="tree-meta">2026-10-01</span>
-                            </summary>
-                            <div class="essay-body"></div>
-                        </details>
-                        <details class="essay-file" data-md="essays/2026-10-05.md">
-                            <summary>
-                                <i class="fas fa-file-alt tree-icon"></i>
-                                <span class="tree-label">从零搭建自托管服务栈</span>
-                                <span class="tree-meta">2026-10-05</span>
-                            </summary>
-                            <div class="essay-body"></div>
-                        </details>
-                    </div>
-                </details>
-            </div>
+            <!-- ★ 关键：这里是空容器，文章树由 JS 自动生成 -->
+            <div class="file-tree" id="fileTree"></div>
         </section>
 
         <footer class="footer">
@@ -106,6 +81,7 @@
 
     <script src="vendor/marked.min.js"></script>
     <script src="post.js"></script>
+    <script src="articles.js"></script>   <!-- ★ 关键：必须引入 -->
     <script src="script.js"></script>
 </body>
 </html>

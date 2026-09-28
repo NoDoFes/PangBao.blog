@@ -2,6 +2,88 @@
     'use strict';
 
     /* ============================================
+       【新增】从 articles.js 自动生成文件树
+       必须在所有 querySelectorAll('details.essay-file') 之前执行
+       ============================================ */
+    (function buildFileTree() {
+        const container = document.getElementById('fileTree');
+        if (!container || !window.PB || !PB.articles) return;
+
+        const frag = document.createDocumentFragment();
+
+        /* 【新增】没有文章时显示空状态 */
+        if (PB.articles.length === 0) {
+            container.innerHTML =
+                '<p style="text-align:center;color:var(--text-muted);padding:2rem 0;">' +
+                '还没有文章，下次来就有了胖宝 🐾' +
+                '</p>';
+            return;
+        }
+
+        PB.articles.forEach(folder => {
+            const details = document.createElement('details');
+            details.className = 'tree-folder';
+            if (folder.open) details.open = true;
+
+            const summary = document.createElement('summary');
+            summary.innerHTML =
+                '<i class="fas fa-folder tree-icon"></i>' +
+                '<span class="tree-label"></span>';
+            summary.querySelector('.tree-label').textContent = folder.folder;
+            details.appendChild(summary);
+
+            const children = document.createElement('div');
+            children.className = 'tree-children';
+
+            (folder.items || []).forEach(item => {
+                const file = document.createElement('details');
+                file.className = 'essay-file';
+                file.dataset.md = item.md;
+
+                const s = document.createElement('summary');
+
+                const icon = document.createElement('i');
+                icon.className = 'fas fa-file-alt tree-icon';
+                s.appendChild(icon);
+
+                const label = document.createElement('span');
+                label.className = 'tree-label';
+                label.textContent = item.title;
+                s.appendChild(label);
+
+                const meta = document.createElement('span');
+                meta.className = 'tree-meta';
+                meta.textContent = item.date || '';
+                s.appendChild(meta);
+
+                // "在新页面打开" 小图标
+                const openLink = document.createElement('a');
+                openLink.className = 'essay-open-link';
+                openLink.href = 'article.html?md=' + encodeURIComponent(item.md);
+                openLink.target = '_blank';
+                openLink.rel = 'noopener';
+                openLink.title = '在新页面打开';
+                openLink.setAttribute('aria-label', '在新页面打开');
+                openLink.innerHTML = '<i class="fas fa-external-link-alt"></i>';
+                s.appendChild(openLink);
+
+                file.appendChild(s);
+
+                const body = document.createElement('div');
+                body.className = 'essay-body';
+                file.appendChild(body);
+
+                children.appendChild(file);
+            });
+
+            details.appendChild(children);
+            frag.appendChild(details);
+        });
+
+        container.appendChild(frag);
+    })();
+
+    /* ============================================
        主题切换
        ============================================ */
     const STORAGE_KEY = 'theme-preference';
@@ -364,6 +446,9 @@
        完全由我们决定"关旧、开新"的顺序
        ============================================ */
     document.addEventListener('click', (e) => {
+        /* 【新增】点"在新页面打开"图标时，不拦截、不 toggle */
+        if (e.target.closest('.essay-open-link')) return;
+
         const summary = e.target.closest('details.essay-file > summary');
         if (!summary) return;
         const details = summary.parentElement;

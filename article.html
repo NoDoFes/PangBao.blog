@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>胖宝基地</title>
+
+  <style>
+    :root { color-scheme: dark light; }
+    html { background: #16111f; }
+    html[data-theme="light"] { background: #f7f2eb; }
+    body { margin: 0; }
+  </style>
+
+  <script>
+    (function () {
+      var t = localStorage.getItem('theme-preference') || 'system';
+      var d = t === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : t;
+      document.documentElement.setAttribute('data-theme', d);
+    })();
+  </script>
+
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="stylesheet" href="vendor/font-awesome/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="post.css" />
+</head>
+<body>
+
+  <aside id="toc-sidebar" class="toc-sidebar"></aside>
+
+  <nav class="topbar">
+    <a class="nav-brand" href="index.html" style="text-decoration:none;">胖宝基地</a>
+    <div class="breadcrumb" id="breadcrumb">
+      <a class="crumb crumb-home" href="index.html" style="text-decoration:none;">
+        <i class="fas fa-home"></i> 首页
+      </a>
+    </div>
+    <div class="theme-switcher" id="themeSwitcher">
+      <button class="theme-btn" data-theme-value="light" title="亮色" aria-label="亮色"><i class="fas fa-sun"></i></button>
+      <button class="theme-btn" data-theme-value="dark" title="暗色" aria-label="暗色"><i class="fas fa-moon"></i></button>
+      <button class="theme-btn" data-theme-value="system" title="跟随系统" aria-label="跟随系统"><i class="fas fa-desktop"></i></button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <article class="post" id="post-content">
+      <p class="post-loading">加载中…</p>
+    </article>
+
+    <footer class="footer">
+      &copy; 2026 <span>PangBao</span> · powerd by 画画力一族
+    </footer>
+  </main>
+
+  <script src="vendor/marked.min.js"></script>
+  <script src="post.js"></script>
+  <script src="articles.js"></script>
+  <script defer src="script.js"></script>
+
+  <!-- 【新增】article 页专用：根据 ?md= 自动生成面包屑 -->
+  <script>
+    (function () {
+      if (!window.PB || !PB.articles) return;
+      const params = new URLSearchParams(location.search);
+      const md = params.get('md');
+      if (!md) return;
+
+      const bc = document.getElementById('breadcrumb');
+      if (!bc) return;
+
+      // 在 articles.js 里找对应项
+      let hit = null;
+      for (const folder of PB.articles) {
+        for (const item of folder.items || []) {
+          if (item.md === md) {
+            hit = { folder: folder.folder, item };
+            break;
+          }
+        }
+        if (hit) break;
+      }
+      if (!hit) return;
+
+      // 清掉占位（若有），逐段 append
+      bc.innerHTML = '';
+
+      const home = document.createElement('a');
+      home.className = 'crumb crumb-home';
+      home.href = 'index.html';
+      home.style.textDecoration = 'none';
+      home.innerHTML = '<i class="fas fa-home"></i> 首页';
+      bc.appendChild(home);
+
+      const sep1 = document.createElement('span');
+      sep1.className = 'crumb-sep';
+      sep1.textContent = '›';
+      bc.appendChild(sep1);
+
+      const f = document.createElement('span');
+      f.className = 'crumb crumb-depth-0';
+      f.textContent = hit.folder;
+      bc.appendChild(f);
+
+      const sep2 = document.createElement('span');
+      sep2.className = 'crumb-sep';
+      sep2.textContent = '›';
+      bc.appendChild(sep2);
+
+      const t = document.createElement('span');
+      t.className = 'crumb crumb-file';
+      t.textContent = hit.item.title;
+      bc.appendChild(t);
+    })();
+  </script>
+</body>
+</html>
