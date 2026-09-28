@@ -81,25 +81,25 @@
         const el = document.getElementById('breadcrumb');
         if (!el) return;
 
-        const openNodes = Array.from(document.querySelectorAll(
-            'details.tree-folder[open], details.essay-file[open]'
-        )).filter(n => {
-            if (n.classList.contains('collapsing')) return false;
-            let p = n.parentElement;
-            while (p && p !== document.body) {
-                if (p.matches && p.matches('details.tree-folder') && !p.open) {
-                    return false;
-                }
-                p = p.parentElement;
-            }
-            return true;
-        });
+        // 找目标：优先"唯一打开的文章"，否则最深的打开文件夹
+        let target = document.querySelector('details.essay-file[open]');
 
+        if (!target) {
+            const openFolders = Array.from(document.querySelectorAll('details.tree-folder[open]'));
+            if (openFolders.length) {
+                target = openFolders.find(n =>
+                    !openFolders.some(other => other !== n && n.contains(other))
+                ) || openFolders[0];
+            }
+        }
+
+        // 保证首页存在
         if (!el.querySelector('.crumb-home')) {
             el.innerHTML = '<span class="crumb crumb-home"><i class="fas fa-home"></i> 首页</span>';
         }
 
-        if (!openNodes.length) {
+        // 无目标 → 清空动态部分
+        if (!target) {
             Array.from(el.children).forEach(n => {
                 if (
                     (n.classList.contains('crumb-dynamic') ||
@@ -112,12 +112,9 @@
             return;
         }
 
-        const deepest = openNodes.find(n =>
-            !openNodes.some(other => other !== n && n.contains(other))
-        ) || openNodes[0];
-
+        // 收集路径
         const labels = [];
-        let cur = deepest;
+        let cur = target;
         while (cur && cur !== document.body) {
             if (cur.matches && cur.matches('details.tree-folder, details.essay-file')) {
                 const lbl = cur.querySelector(':scope > summary .tree-label');
@@ -218,69 +215,68 @@
         }, 320);
     }
 
+    /* ============================================
+       关闭文章：克隆 body 播动画，原 DOM 立即关闭
+       ============================================ */
+    function closeEssayWithAnim(fileEl) {
+        if (!fileEl || !fileEl.open) return;
+
+        const body = fileEl.querySelector('.essay-body');
+        if (!body) {
+            fileEl.open = false;
+            return;
+        }
+
+        const rect = body.getBoundingClientRect();
+        const computed = getComputedStyle(body);
+
+        const clone = body.cloneNode(true);
+        clone.style.cssText = `
+            position: fixed;
+            left: ${rect.left}px;
+            top: ${rect.top}px;
+            width: ${rect.width}px;
+            height: ${rect.height}px;
+            max-height: ${rect.height}px;
+            margin: 0;
+            padding: ${computed.padding};
+            background: ${computed.backgroundColor};
+            border: ${computed.border};
+            border-radius: ${computed.borderRadius};
+            box-sizing: border-box;
+            overflow: hidden;
+            opacity: 1;
+            transition: max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
+                        opacity 0.22s ease,
+                        padding 0.22s ease;
+            z-index: 50;
+            pointer-events: none;
+        `;
+        document.body.appendChild(clone);
+
+        // 立即关闭原文章（DOM 状态干净，面包屑立刻反映）
+        fileEl.open = false;
+
+        requestAnimationFrame(() => {
+            clone.style.maxHeight = '0px';
+            clone.style.opacity = '0';
+            clone.style.paddingTop = '0';
+            clone.style.paddingBottom = '0';
+        });
+
+        setTimeout(() => clone.remove(), 320);
+    }
+
+    /* ============================================
+       点文件夹面包屑
+       ============================================ */
     function onFolderCrumbClick(folderEl) {
         const opened = Array.from(folderEl.querySelectorAll('details.essay-file[open]'));
+        opened.forEach(d => closeEssayWithAnim(d));
 
-        if (!opened.length) {
-            folderEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            return;
-        }
-
-        if (window.scrollY < 10) {
-            collapseAll(opened);
-            return;
-        }
-
-        let done = false;
-        const finish = () => {
-            if (done) return;
-            done = true;
-            collapseAll(opened);
-        };
-
-        window.addEventListener('scrollend', finish, { once: true });
-        setTimeout(finish, 1000);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function collapseAll(opened) {
-        Promise.all(opened.map(collapseWithAnimation)).then(() => {
-            refreshBreadcrumb();
-        });
-    }
-
-    function collapseWithAnimation(fileEl) {
-        return new Promise(resolve => {
-            const body = fileEl.querySelector('.essay-body');
-            if (!body || !fileEl.open) {
-                fileEl.open = false;
-                resolve();
-                return;
-            }
-
-            fileEl.classList.add('collapsing');
-
-            body.style.overflow = 'hidden';
-            body.style.maxHeight = body.scrollHeight + 'px';
-            body.style.transition = 'max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease, transform 0.25s ease, padding 0.25s ease, margin 0.25s ease';
-
-            requestAnimationFrame(() => {
-                body.style.maxHeight = '0px';
-                body.style.opacity = '0';
-                body.style.transform = 'translateY(-6px)';
-                body.style.paddingTop = '0';
-                body.style.paddingBottom = '0';
-                body.style.marginTop = '0';
-                body.style.marginBottom = '0';
-            });
-
-            setTimeout(() => {
-                fileEl.open = false;
-                fileEl.classList.remove('collapsing');
-                body.style.cssText = '';
-                resolve();
-            }, 320);
-        });
+        refreshBreadcrumb();
+        clearTOC();
+        folderEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     /* ============================================
@@ -289,32 +285,11 @@
     document.addEventListener('click', (e) => {
         if (!e.target.closest('.crumb-home')) return;
 
-        const openedFiles = Array.from(document.querySelectorAll('details.essay-file[open]'));
-        const openedFolders = Array.from(document.querySelectorAll('details.tree-folder[open]'));
+        document.querySelectorAll('details.essay-file[open]').forEach(d => closeEssayWithAnim(d));
+        document.querySelectorAll('details.tree-folder[open]').forEach(f => f.open = false);
 
-        if (!openedFiles.length && !openedFolders.length) {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            return;
-        }
-
-        let done = false;
-        const finish = () => {
-            if (done) return;
-            done = true;
-
-            Promise.all(openedFiles.map(collapseWithAnimation)).then(() => {
-                const sortedFolders = openedFolders.sort((a, b) =>
-                    b.querySelectorAll('details').length - a.querySelectorAll('details').length
-                );
-                sortedFolders.forEach(f => { f.open = false; });
-
-                clearTOC();
-                refreshBreadcrumb();
-            });
-        };
-
-        window.addEventListener('scrollend', finish, { once: true });
-        setTimeout(finish, 1000);
+        clearTOC();
+        refreshBreadcrumb();
         window.scrollTo({ top: 0, behavior: 'smooth' });
     });
 
@@ -385,74 +360,56 @@
     });
 
     /* ============================================
-       拦截 essay-file 的关闭，走收起动画
-       用捕获阶段，先于浏览器默认的 toggle 行为
+       手动接管 essay-file 的点击（捕获阶段）
+       完全由我们决定"关旧、开新"的顺序
        ============================================ */
     document.addEventListener('click', (e) => {
         const summary = e.target.closest('details.essay-file > summary');
         if (!summary) return;
         const details = summary.parentElement;
-        if (!details || !details.matches('details.essay-file')) return;
-        if (!details.open) return;                               // 关闭中，正常打开
-        if (details.classList.contains('collapsing')) return;    // 动画中，忽略
 
-        // 拦截默认行为，手动关闭并播动画
+        // 阻止浏览器的默认 toggle 行为
         e.preventDefault();
-        e.stopPropagation();
 
-        // 立即打上 collapsing，让 refreshBreadcrumb 过滤掉它
-        details.classList.add('collapsing');
-        refreshBreadcrumb();
+        // 正在关闭动画中，忽略
+        if (details.classList.contains('closing')) return;
 
-        collapseWithAnimation(details).then(() => {
+        if (details.open) {
+            /* ---------- 场景 1：关闭当前文章 ---------- */
+            closeEssayWithAnim(details);
             refreshBreadcrumb();
+
             const stillOpen = document.querySelector('details.essay-file[open]');
-            if (stillOpen) {
-                const otherBody = stillOpen.querySelector('.essay-body');
-                if (otherBody && window.PB && PB.buildTOC) PB.buildTOC(otherBody);
-            } else {
-                clearTOC();
-            }
-        });
+            if (!stillOpen) clearTOC();
+        } else {
+            /* ---------- 场景 2：打开新文章（先关旧，再开新） ---------- */
+            // 1) 立即关闭其他所有打开的文章
+            document.querySelectorAll('details.essay-file[open]').forEach(d => {
+                if (d !== details) closeEssayWithAnim(d);
+            });
+
+            // 2) 打开新文章
+            details.open = true;
+
+            // 3) 刷新面包屑 + 加载内容
+            refreshBreadcrumb();
+            loadEssay(details);
+        }
     }, true);
 
     /* ============================================
-       toggle 总控（处理打开 + 切换文章）
+       toggle：只处理文件夹
+       essay-file 的开关已完全由上面接管
        ============================================ */
     document.addEventListener('toggle', (e) => {
         const details = e.target;
         if (!details || !details.matches) return;
-        if (!details.matches('details.tree-folder, details.essay-file')) return;
+        if (!details.matches('details.tree-folder')) return;
 
-        if (details.classList.contains('collapsing')) return;
-
-        if (details.matches('details.essay-file')) {
-            if (details.open) {
-                const others = Array.from(document.querySelectorAll('details.essay-file[open]'))
-                    .filter(d => d !== details && !d.classList.contains('collapsing'));
-
-                if (others.length) {
-                    refreshBreadcrumb();
-                    others.forEach(d => d.classList.add('collapsing'));
-                    others.forEach(collapseWithAnimation);
-                    loadEssay(details);
-                    return;
-                }
-
-                refreshBreadcrumb();
-                loadEssay(details);
-            }
-            // 关闭分支已被 click 拦截处理，这里不再需要
-            return;
-        }
-
+        // 文件夹关闭 → 内部所有文章立即关闭
         if (!details.open) {
-            const inside = Array.from(details.querySelectorAll('details.essay-file[open]'));
-            inside.forEach(d => {
-                if (d.classList.contains('collapsing')) return;
-                d.classList.add('collapsing');
-                d.open = false;
-                d.classList.remove('collapsing');
+            details.querySelectorAll('details.essay-file[open]').forEach(f => {
+                f.open = false;
             });
             clearTOC();
         }
