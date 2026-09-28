@@ -94,7 +94,7 @@ body {
     top: 0.75rem;
     z-index: 100;
     width: 100%;
-    max-width: 1080px;
+    max-width: 1200px;
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -232,7 +232,7 @@ body {
    主容器
    ============================================ */
 .container {
-    max-width: 1080px;
+    max-width: 1200px;
     width: 100%;
     background: var(--bg-secondary);
     backdrop-filter: blur(8px);
@@ -677,4 +677,53 @@ body {
         animation: none !important;
         transition: none !important;
     }
+}
+
+/* ============================================
+   阅读模式 v4：铺满 + 实色背景
+   ============================================ */
+
+/* 【1】文章打开时，隐藏所在层的竖线 */
+.tree-children:has(> .essay-file[open]) {
+  border-left-color: transparent;
+}
+
+/* 【2】文章专用实色背景（不透明，杜绝穿透） */
+:root {
+  --read-bg: #1f1830;
+  --read-pull-left: 5.75rem;
+  --read-pull-right: 4rem;
+}
+
+[data-theme="light"] {
+  --read-bg: #f5eee4;
+}
+
+/* 【3】打开的文章：铺满 + 实色 */
+.essay-file[open] > .essay-body {
+  margin-left:  calc(-1 * var(--read-pull-left));
+  margin-right: calc(-1 * var(--read-pull-right));
+
+  border: none;
+  border-radius: var(--radius-lg);
+  background: var(--read-bg);   /* ★ 从半透明换成不透明 */
+
+  padding: 2.5rem 3.5rem;
+  font-size: 1.02rem;
+  line-height: 1.85;
+}
+
+/* 【4】手机端铺满屏幕 */
+@media (max-width: 780px) {
+  :root {
+    --read-pull-left: 3.6rem;
+    --read-pull-right: 2rem;
+  }
+
+  .essay-file[open] > .essay-body {
+    padding: 1.75rem 1.25rem;
+    font-size: 1rem;
+    line-height: 1.78;
+    border-radius: 0;
+  }
 }
