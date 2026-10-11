@@ -1,546 +1,562 @@
+/* ============================================================
+   胖宝基地 · 通用脚本
+   - 主题切换（View Transition 圆形扩散 + CSS 过渡回退）
+   - 顶栏滚动阴影
+   - 首页：文章列表 + 画作瀑布流 + 灯箱
+   - 页面切换（不拦截原生跳转）
+   ============================================================ */
 (function () {
-    'use strict';
+  'use strict';
 
-    /* ============================================
-       【新增】从 articles.js 自动生成文件树
-       必须在所有 querySelectorAll('details.essay-file') 之前执行
-       ============================================ */
-    (function buildFileTree() {
-        const container = document.getElementById('fileTree');
-        if (!container || !window.PB || !PB.articles) return;
+  const $  = (sel, root = document) => root.querySelector(sel);
+  const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-        const frag = document.createDocumentFragment();
+  /* ============================================================
+     0. 画作排序（首页瀑布流 & 灯箱共用一个顺序）
+     - date 倒序（无 date 的排最后）
+     - 同日期 / 都无 date：按原始数组顺序
+     ============================================================ */
+  function sortArtworks(list) {
+    return list
+      .map((item, origIdx) => ({ item, origIdx }))
+      .sort((a, b) => {
+        const da = a.item.date || '';
+        const db = b.item.date || '';
+        if (!da && !db) return a.origIdx - b.origIdx;
+        if (!da) return 1;
+        if (!db) return -1;
+        return db.localeCompare(da);
+      })
+      .map(x => x.item);
+  }
 
-        /* 【新增】没有文章时显示空状态 */
-        if (PB.articles.length === 0) {
-            container.innerHTML =
-                '<p style="text-align:center;color:var(--text-muted);padding:2rem 0;">' +
-                '还没有文章，下次来就有了胖宝 🐾' +
-                '</p>';
-            return;
-        }
+  /* ============================================================
+     1. 主题
+     ============================================================ */
+  const THEME_KEY = 'theme-preference';
+  const html = document.documentElement;
+  const darkMedia = window.matchMedia('(prefers-color-scheme: dark)');
+  let mediaListener = null;
+  let themeTransitionTimer = null;
 
-        PB.articles.forEach(folder => {
-            const details = document.createElement('details');
-            details.className = 'tree-folder';
-            if (folder.open) details.open = true;
+  const getPref = () => localStorage.getItem(THEME_KEY) || 'system';
+  const getSysTheme = () => (darkMedia.matches ? 'dark' : 'light');
+  const prefersReduced = () =>
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-            const summary = document.createElement('summary');
-            summary.innerHTML =
-                '<i class="fas fa-folder tree-icon"></i>' +
-                '<span class="tree-label"></span>';
-            summary.querySelector('.tree-label').textContent = folder.folder;
-            details.appendChild(summary);
+  const VT_DURATION = 500;
+  const CSS_FALLBACK_DURATION = 450;
 
-            const children = document.createElement('div');
-            children.className = 'tree-children';
+  function applyTheme(pref, origin) {
+    const eff = pref === 'system' ? getSysTheme() : pref;
+    const prevEff = html.getAttribute('data-theme');
+    const willChange = prevEff !== eff;
 
-            (folder.items || []).forEach(item => {
-                const file = document.createElement('details');
-                file.className = 'essay-file';
-                file.dataset.md = item.md;
+    const commit = () => {
+      html.setAttribute('data-theme', eff);
+      $$('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.themeValue === pref);
+      });
+      localStorage.setItem(THEME_KEY, pref);
+    };
 
-                const s = document.createElement('summary');
+    if (!willChange) { commit(); return; }
+    if (prefersReduced()) { commit(); return; }
 
-                const icon = document.createElement('i');
-                icon.className = 'fas fa-file-alt tree-icon';
-                s.appendChild(icon);
-
-                const label = document.createElement('span');
-                label.className = 'tree-label';
-                label.textContent = item.title;
-                s.appendChild(label);
-
-                const meta = document.createElement('span');
-                meta.className = 'tree-meta';
-                meta.textContent = item.date || '';
-                s.appendChild(meta);
-
-                // "在新页面打开" 小图标
-                const openLink = document.createElement('a');
-                openLink.className = 'essay-open-link';
-                openLink.href = 'article.html?md=' + encodeURIComponent(item.md);
-                openLink.target = '_blank';
-                openLink.rel = 'noopener';
-                openLink.title = '在新页面打开';
-                openLink.setAttribute('aria-label', '在新页面打开');
-                openLink.innerHTML = '<i class="fas fa-external-link-alt"></i>';
-                s.appendChild(openLink);
-
-                file.appendChild(s);
-
-                const body = document.createElement('div');
-                body.className = 'essay-body';
-                file.appendChild(body);
-
-                children.appendChild(file);
-            });
-
-            details.appendChild(children);
-            frag.appendChild(details);
-        });
-
-        container.appendChild(frag);
-    })();
-
-    /* ============================================
-       主题切换
-       ============================================ */
-    const STORAGE_KEY = 'theme-preference';
-    const html = document.documentElement;
-
-    const getPreferredTheme = () => localStorage.getItem(STORAGE_KEY) || 'system';
-    const getSystemTheme = () =>
-        window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-
-    function applyTheme(pref) {
-        const eff = pref === 'system' ? getSystemTheme() : pref;
-        html.setAttribute('data-theme', eff);
-        document.querySelectorAll('.theme-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.themeValue === pref);
-        });
-        localStorage.setItem(STORAGE_KEY, pref);
+    const supportsVT = typeof document.startViewTransition === 'function';
+    if (supportsVT && origin) {
+      const x = origin.x;
+      const y = origin.y;
+      const endRadius = Math.hypot(
+        Math.max(x, window.innerWidth - x),
+        Math.max(y, window.innerHeight - y)
+      );
+      const transition = document.startViewTransition(commit);
+      transition.ready.then(() => {
+        document.documentElement.animate(
+          {
+            clipPath: [
+              `circle(0px at ${x}px ${y}px)`,
+              `circle(${endRadius}px at ${x}px ${y}px)`
+            ]
+          },
+          {
+            duration: VT_DURATION,
+            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
+            pseudoElement: '::view-transition-new(root)'
+          }
+        );
+      }).catch(() => {});
+      return;
     }
 
-    let mediaListener = null;
-    const darkMedia = window.matchMedia('(prefers-color-scheme: dark)');
+    html.classList.add('theme-transition');
+    commit();
+    clearTimeout(themeTransitionTimer);
+    themeTransitionTimer = setTimeout(() => {
+      html.classList.remove('theme-transition');
+    }, CSS_FALLBACK_DURATION);
+  }
 
-    function startSystemListener() {
-        if (mediaListener) return;
-        mediaListener = () => {
-            if (getPreferredTheme() === 'system') applyTheme('system');
-        };
-        darkMedia.addEventListener('change', mediaListener);
+  function startSysListener() {
+    if (mediaListener) return;
+    mediaListener = () => {
+      if (getPref() === 'system') applyTheme('system');
+    };
+    darkMedia.addEventListener('change', mediaListener);
+  }
+  function stopSysListener() {
+    if (!mediaListener) return;
+    darkMedia.removeEventListener('change', mediaListener);
+    mediaListener = null;
+  }
+  function initTheme() {
+    const pref = getPref();
+    const eff = pref === 'system' ? getSysTheme() : pref;
+    html.setAttribute('data-theme', eff);
+    $$('.theme-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.themeValue === pref);
+    });
+    if (pref === 'system') startSysListener();
+  }
+  function setTheme(value, origin) {
+    stopSysListener();
+    applyTheme(value, origin);
+    if (value === 'system') startSysListener();
+  }
+
+  /* ============================================================
+     2. 顶栏滚动阴影
+     ============================================================ */
+  function initTopbarScroll() {
+    const topbar = $('.topbar');
+    if (!topbar) return;
+    let ticking = false;
+    const update = () => {
+      topbar.classList.toggle('scrolled', window.scrollY > 20);
+      ticking = false;
+    };
+    window.addEventListener('scroll', () => {
+      if (!ticking) { requestAnimationFrame(update); ticking = true; }
+    }, { passive: true });
+    update();
+  }
+
+  /* ============================================================
+     3. 首页：文章列表（自动从 .md 提取封面）
+     ============================================================ */
+  async function loadCoverFromMd(mdPath) {
+    try {
+      const res = await fetch(mdPath, { cache: 'default' });
+      if (!res.ok) return null;
+      const text = await res.text();
+
+      const m = text.match(/!\[[^\]]*\]\(\s*([^)\s]+?)(?:\s+["'][^"']*["'])?\s*\)/);
+      if (!m) return null;
+
+      let url = m[1].trim();
+      url = url.replace(/^<|>$/g, '');
+      url = url.replace(/^["']|["']$/g, '');
+      if (!url) return null;
+
+      if (/^(https?:)?\/\//.test(url) || url.startsWith('/') || url.startsWith('data:')) {
+        return url;
+      }
+
+      const dir = mdPath.substring(0, mdPath.lastIndexOf('/'));
+      return dir ? dir + '/' + url : url;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  function createCoverEl(src, animate) {
+    const img = document.createElement('img');
+    img.className = 'article-item-cover' + (animate ? ' cover-loaded' : '');
+    img.src = src;
+    img.alt = '';
+    img.loading = 'lazy';
+    img.decoding = 'async';
+    return img;
+  }
+
+  function buildArticleList() {
+    const container = $('#articleList');
+    if (!container || !window.PB || !Array.isArray(PB.articles)) return;
+
+    if (!PB.articles.length) {
+      container.innerHTML = '<p class="section-empty">还没有文章，下次来就有了胖宝 🐾</p>';
+      return;
     }
 
-    function stopSystemListener() {
-        if (!mediaListener) return;
-        darkMedia.removeEventListener('change', mediaListener);
-        mediaListener = null;
-    }
+    const frag = document.createDocumentFragment();
+    const cards = [];
 
-    function initTheme() {
-        const pref = getPreferredTheme();
-        applyTheme(pref);
-        if (pref === 'system') startSystemListener();
-    }
+    PB.articles.forEach((item, i) => {
+      const a = document.createElement('a');
+      a.className = 'article-item';
+      a.href = 'article.html?md=' + encodeURI(item.md);
+      a.style.setProperty('--i', i);
 
-    function setTheme(value) {
-        stopSystemListener();
-        applyTheme(value);
-        if (value === 'system') startSystemListener();
-    }
+      if (item.cover) {
+        a.classList.add('has-cover');
+        a.appendChild(createCoverEl(item.cover, false));
+      }
 
-    document.querySelectorAll('.theme-btn').forEach(btn => {
-        btn.addEventListener('click', () => setTheme(btn.dataset.themeValue));
+      const body = document.createElement('div');
+      body.className = 'article-item-body';
+
+      const title = document.createElement('div');
+      title.className = 'article-item-title';
+      title.textContent = item.title || '未命名';
+      body.appendChild(title);
+
+      if (item.desc) {
+        const desc = document.createElement('div');
+        desc.className = 'article-item-desc';
+        desc.textContent = item.desc;
+        body.appendChild(desc);
+      }
+
+      if (item.date) {
+        const meta = document.createElement('div');
+        meta.className = 'article-item-meta';
+        meta.innerHTML = '<i class="far fa-calendar"></i> ' + item.date;
+        body.appendChild(meta);
+      }
+
+      a.appendChild(body);
+
+      const arrow = document.createElement('span');
+      arrow.className = 'article-item-arrow';
+      arrow.innerHTML = '<i class="fas fa-arrow-right"></i>';
+      a.appendChild(arrow);
+
+      frag.appendChild(a);
+      cards.push({ el: a, item });
     });
 
+    container.innerHTML = '';
+    container.appendChild(frag);
+
+    cards.forEach(({ el, item }) => {
+      if (item.cover) return;
+      if (item.noCover) return;
+      if (el.querySelector('.article-item-cover')) return;
+
+      loadCoverFromMd(item.md).then(url => {
+        if (!url) return;
+        if (el.querySelector('.article-item-cover')) return;
+        el.insertBefore(createCoverEl(url, true), el.firstChild);
+        el.classList.add('has-cover');
+      });
+    });
+  }
+
+  /* ============================================================
+     4. 首页：画作瀑布流（全量展示）
+     ============================================================ */
+  /* 供灯箱使用：排序后的画作列表 */
+  let masonryList = [];
+
+  function buildMasonry() {
+    const container = $('#masonry');
+    const emptyEl = $('#masonryEmpty');
+    if (!container || !window.PB || !Array.isArray(PB.artworks)) return;
+
+    const list = sortArtworks(PB.artworks);
+
+    if (!list.length) {
+      if (emptyEl) emptyEl.hidden = false;
+      return;
+    }
+    if (emptyEl) emptyEl.hidden = true;
+
+    masonryList = list;
+
+    const frag = document.createDocumentFragment();
+
+    list.forEach((item, i) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'masonry-item';
+      btn.style.setProperty('--i', i);
+      btn.dataset.index = String(i);
+      btn.setAttribute('aria-label', '查看：' + (item.title || '未命名'));
+
+      const img = document.createElement('img');
+      img.src = item.src;
+      img.alt = item.title || '';
+      img.loading = 'lazy';
+      img.decoding = 'async';
+      if (item.w && item.h) {
+        img.width = item.w;
+        img.height = item.h;
+      }
+
+      const markLoaded = () => img.classList.add('loaded');
+      if (img.complete && img.naturalWidth) markLoaded();
+      else img.addEventListener('load', markLoaded, { once: true });
+      img.addEventListener('error', markLoaded, { once: true });
+
+      btn.appendChild(img);
+
+      /* hover 浮层：标题 + 日期 */
+      const overlay = document.createElement('div');
+      overlay.className = 'masonry-overlay';
+
+      const t = document.createElement('div');
+      t.className = 'masonry-overlay-title';
+      t.textContent = item.title || '';
+      overlay.appendChild(t);
+
+      const meta = document.createElement('div');
+      meta.className = 'masonry-overlay-meta';
+      if (item.date) {
+        const d = document.createElement('span');
+        d.textContent = item.date;
+        meta.appendChild(d);
+      }
+      overlay.appendChild(meta);
+
+      btn.appendChild(overlay);
+      frag.appendChild(btn);
+    });
+
+    container.innerHTML = '';
+    container.appendChild(frag);
+
+    container.addEventListener('click', e => {
+      const btn = e.target.closest('.masonry-item');
+      if (!btn) return;
+      const idx = parseInt(btn.dataset.index, 10);
+      openLightbox(idx);
+    });
+  }
+
+  /* ============================================================
+     5. 灯箱
+     ============================================================ */
+  const lb = {
+    el: null,
+    image: null,
+    title: null,
+    date: null,
+    counter: null,
+    prevBtn: null,
+    nextBtn: null,
+    index: 0,
+    open: false,
+    lastFocused: null,
+    keyHandler: null
+  };
+
+  function ensureLightbox() {
+    if (lb.el) return;
+    lb.el      = $('#lightbox');
+    if (!lb.el) return;
+
+    lb.image   = $('#lbImage');
+    lb.title   = $('#lbTitle');
+    lb.date    = $('#lbDate');
+    lb.counter = $('#lbCounter');
+    lb.prevBtn = lb.el.querySelector('[data-lb-prev]');
+    lb.nextBtn = lb.el.querySelector('[data-lb-next]');
+
+    lb.el.addEventListener('click', e => {
+      if (e.target.closest('[data-lb-close]'))  { closeLightbox(); return; }
+      if (e.target.closest('[data-lb-prev]'))   { gotoImage(lb.index - 1); return; }
+      if (e.target.closest('[data-lb-next]'))   { gotoImage(lb.index + 1); return; }
+    });
+  }
+
+  function swapImage(src, alt) {
+    lb.image.src = src;
+    lb.image.alt = alt || '';
+    const show = () => {
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        lb.image.classList.add('lb-in');
+      }));
+    };
+    if (lb.image.complete && lb.image.naturalWidth) {
+      show();
+    } else {
+      lb.image.addEventListener('load',  show, { once: true });
+      lb.image.addEventListener('error', show, { once: true });
+    }
+  }
+
+  function openLightbox(index) {
+    ensureLightbox();
+    if (!lb.el || !masonryList.length) return;
+
+    lb.index = Math.max(0, Math.min(index, masonryList.length - 1));
+    lb.lastFocused = document.activeElement;
+    lb.open = true;
+
+    lb.image.classList.remove('lb-in');
+    lb.el.removeAttribute('hidden');
+    lb.el.setAttribute('aria-hidden', 'false');
+    lb.el.classList.add('lightbox-open');
+    document.body.classList.add('lightbox-lock');
+
+    requestAnimationFrame(() => {
+      lb.el.classList.add('lightbox-visible');
+    });
+
+    if (!lb.keyHandler) {
+      lb.keyHandler = e => {
+        if (!lb.open) return;
+        if (e.key === 'Escape')          { e.preventDefault(); closeLightbox(); }
+        else if (e.key === 'ArrowLeft')  { e.preventDefault(); gotoImage(lb.index - 1); }
+        else if (e.key === 'ArrowRight') { e.preventDefault(); gotoImage(lb.index + 1); }
+      };
+      document.addEventListener('keydown', lb.keyHandler);
+    }
+
+    const item = masonryList[lb.index];
+    lb.image.classList.remove('lb-in');
+    void lb.image.offsetWidth;
+    swapImage(item.src, item.title || '');
+    renderCaption(item);
+  }
+
+  function closeLightbox() {
+    if (!lb.open || !lb.el) return;
+    lb.open = false;
+
+    lb.image.classList.remove('lb-in');
+    lb.el.classList.remove('lightbox-visible');
+    document.body.classList.remove('lightbox-lock');
+
+    const cleanup = () => {
+      lb.el.classList.remove('lightbox-open');
+      lb.el.setAttribute('hidden', '');
+      lb.el.setAttribute('aria-hidden', 'true');
+      lb.image.removeAttribute('src');
+      lb.image.classList.remove('lb-in');
+    };
+
+    if (prefersReduced()) cleanup();
+    else setTimeout(cleanup, 480);
+
+    if (lb.keyHandler) {
+      document.removeEventListener('keydown', lb.keyHandler);
+      lb.keyHandler = null;
+    }
+
+    if (lb.lastFocused && lb.lastFocused.focus) {
+      try { lb.lastFocused.focus({ preventScroll: true }); } catch (_) {}
+    }
+    lb.lastFocused = null;
+  }
+
+  function gotoImage(i) {
+    if (!masonryList.length) return;
+    if (i < 0) i = 0;
+    if (i >= masonryList.length) i = masonryList.length - 1;
+    if (i === lb.index) return;
+    lb.index = i;
+
+    const item = masonryList[lb.index];
+
+    lb.image.classList.remove('lb-in');
+    setTimeout(() => {
+      swapImage(item.src, item.title || '');
+      renderCaption(item);
+    }, 180);
+
+    updateLightboxMeta();
+  }
+
+  function renderCaption(item) {
+    lb.title.textContent = item.title || '';
+    lb.date.textContent  = item.date ? '· ' + item.date : '';
+    lb.date.hidden = !item.date;
+    updateLightboxMeta();
+  }
+
+  function updateLightboxMeta() {
+    lb.counter.textContent = (lb.index + 1) + ' / ' + masonryList.length;
+    lb.prevBtn.disabled = lb.index === 0;
+    lb.nextBtn.disabled = lb.index === masonryList.length - 1;
+    try { history.replaceState(null, '', '#art-' + lb.index); } catch (_) {}
+  }
+
+  /* ============================================================
+     6. 首页面包屑点击回顶
+     ============================================================ */
+  function initHomeBreadcrumb() {
+    const bc = $('#breadcrumb');
+    if (!bc) return;
+    bc.querySelector('.crumb-home')?.addEventListener('click', () => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  }
+
+  /* ============================================================
+     7. 页面切换（不拦截原生跳转）
+     ============================================================ */
+  function initPageTransition() {
+    document.addEventListener('click', e => {
+      const link = e.target.closest('a[href]');
+      if (!link) return;
+      const href = link.getAttribute('href');
+      const target = link.getAttribute('target');
+      if (
+        target === '_blank' || link.hasAttribute('download') ||
+        !href || href.startsWith('#') ||
+        /^(https?:|mailto:|tel:|javascript:)/.test(href)
+      ) return;
+      document.body.classList.add('page-leaving');
+    });
+    window.addEventListener('pageshow', e => {
+      if (e.persisted) document.body.classList.remove('page-leaving');
+    });
+  }
+
+  /* ============================================================
+     8. 启动
+     ============================================================ */
+  function boot() {
+    $$('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        setTheme(btn.dataset.themeValue, { x: e.clientX, y: e.clientY });
+      });
+    });
     initTheme();
+    initTopbarScroll();
 
-    /* ============================================
-       导航栏滚动
-       ============================================ */
-    const topbar = document.querySelector('.topbar');
-    if (topbar) {
-        let ticking = false;
-        const update = () => {
-            topbar.classList.toggle('scrolled', window.scrollY > 20);
-            ticking = false;
-        };
-        window.addEventListener('scroll', () => {
-            if (!ticking) {
-                requestAnimationFrame(update);
-                ticking = true;
-            }
-        }, { passive: true });
-        update();
+    /* 首页专属 */
+    if (document.getElementById('articleList')) {
+      buildArticleList();
+      initHomeBreadcrumb();
+    }
+    if (document.getElementById('masonry')) {
+      buildMasonry();
+
+      /* 若 URL 带 #art-N，自动打开对应灯箱 */
+      const m = location.hash.match(/^#art-(\d+)$/);
+      if (m) {
+        const idx = parseInt(m[1], 10);
+        if (!isNaN(idx)) {
+          requestAnimationFrame(() => openLightbox(idx));
+        }
+      }
     }
 
-    /* ============================================
-       面包屑
-       ============================================ */
-    function refreshBreadcrumb() {
-        const el = document.getElementById('breadcrumb');
-        if (!el) return;
-
-        // 找目标：优先"唯一打开的文章"，否则最深的打开文件夹
-        let target = document.querySelector('details.essay-file[open]');
-
-        if (!target) {
-            const openFolders = Array.from(document.querySelectorAll('details.tree-folder[open]'));
-            if (openFolders.length) {
-                target = openFolders.find(n =>
-                    !openFolders.some(other => other !== n && n.contains(other))
-                ) || openFolders[0];
-            }
-        }
-
-        // 保证首页存在
-        if (!el.querySelector('.crumb-home')) {
-            el.innerHTML = '<span class="crumb crumb-home"><i class="fas fa-home"></i> 首页</span>';
-        }
-
-        // 无目标 → 清空动态部分
-        if (!target) {
-            Array.from(el.children).forEach(n => {
-                if (
-                    (n.classList.contains('crumb-dynamic') ||
-                     n.classList.contains('crumb-dynamic-sep')) &&
-                    !n.classList.contains('crumb-leaving')
-                ) {
-                    removeWithAnim(n);
-                }
-            });
-            return;
-        }
-
-        // 收集路径
-        const labels = [];
-        let cur = target;
-        while (cur && cur !== document.body) {
-            if (cur.matches && cur.matches('details.tree-folder, details.essay-file')) {
-                const lbl = cur.querySelector(':scope > summary .tree-label');
-                if (lbl) {
-                    labels.unshift({
-                        text: lbl.textContent.trim(),
-                        isFile: cur.matches('details.essay-file'),
-                        sourceEl: cur
-                    });
-                }
-            }
-            cur = cur.parentElement;
-        }
-
-        const targets = labels.map((item, i) => ({
-            text: item.text,
-            isFile: item.isFile,
-            depth: Math.min(i, 3),
-            sourceEl: item.sourceEl
-        }));
-
-        const existing = Array.from(el.querySelectorAll('.crumb.crumb-dynamic'))
-            .filter(n => !n.classList.contains('crumb-leaving'));
-
-        let commonLen = 0;
-        for (let i = 0; i < Math.min(existing.length, targets.length); i++) {
-            if (existing[i].dataset.text === targets[i].text) commonLen++;
-            else break;
-        }
-
-        const isReplace = existing.length > commonLen && targets.length > commonLen;
-
-        for (let i = existing.length - 1; i >= commonLen; i--) {
-            const c = existing[i];
-            const sep = c.previousElementSibling;
-
-            if (isReplace) {
-                c.remove();
-                if (sep && sep.classList.contains('crumb-dynamic-sep')) sep.remove();
-            } else {
-                removeWithAnim(c);
-                if (sep && sep.classList.contains('crumb-dynamic-sep') &&
-                    !sep.classList.contains('crumb-leaving')) {
-                    removeWithAnim(sep);
-                }
-            }
-        }
-
-        for (let i = commonLen; i < targets.length; i++) {
-            const t = targets[i];
-
-            const sep = document.createElement('span');
-            sep.className = 'crumb-sep crumb-dynamic-sep crumb-enter-init';
-            sep.textContent = '›';
-            el.appendChild(sep);
-            enterWithAnim(sep);
-
-            const c = document.createElement('span');
-            c.className = 'crumb crumb-dynamic crumb-enter-init';
-            c.dataset.text = t.text;
-            if (t.isFile) {
-                c.classList.add('crumb-file');
-            } else {
-                c.classList.add(`crumb-depth-${t.depth}`, 'crumb-folder');
-            }
-            c.textContent = t.text;
-
-            if (!t.isFile) {
-                c.style.cursor = 'pointer';
-                c.addEventListener('click', () => onFolderCrumbClick(t.sourceEl));
-            }
-            el.appendChild(c);
-            enterWithAnim(c);
-        }
-
-        el.scrollLeft = el.scrollWidth;
-    }
-
-    function enterWithAnim(node) {
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                node.classList.remove('crumb-enter-init');
-            });
-        });
-    }
-
-    function removeWithAnim(node) {
-        if (!node.isConnected) return;
-        if (node.classList.contains('crumb-enter-init')) {
-            node.remove();
-            return;
-        }
-        if (node.classList.contains('crumb-leaving')) return;
-
-        node.classList.add('crumb-leaving');
-        setTimeout(() => {
-            if (node.isConnected) node.remove();
-        }, 320);
-    }
-
-    /* ============================================
-       关闭文章：克隆 body 播动画，原 DOM 立即关闭
-       ============================================ */
-    function closeEssayWithAnim(fileEl) {
-        if (!fileEl || !fileEl.open) return;
-
-        const body = fileEl.querySelector('.essay-body');
-        if (!body) {
-            fileEl.open = false;
-            return;
-        }
-
-        const rect = body.getBoundingClientRect();
-        const computed = getComputedStyle(body);
-
-        const clone = body.cloneNode(true);
-        clone.style.cssText = `
-            position: fixed;
-            left: ${rect.left}px;
-            top: ${rect.top}px;
-            width: ${rect.width}px;
-            height: ${rect.height}px;
-            max-height: ${rect.height}px;
-            margin: 0;
-            padding: ${computed.padding};
-            background: ${computed.backgroundColor};
-            border: ${computed.border};
-            border-radius: ${computed.borderRadius};
-            box-sizing: border-box;
-            overflow: hidden;
-            opacity: 1;
-            transition: max-height 0.28s cubic-bezier(0.4, 0, 0.2, 1),
-                        opacity 0.22s ease,
-                        padding 0.22s ease;
-            z-index: 50;
-            pointer-events: none;
-        `;
-        document.body.appendChild(clone);
-
-        // 立即关闭原文章（DOM 状态干净，面包屑立刻反映）
-        fileEl.open = false;
-
-        requestAnimationFrame(() => {
-            clone.style.maxHeight = '0px';
-            clone.style.opacity = '0';
-            clone.style.paddingTop = '0';
-            clone.style.paddingBottom = '0';
-        });
-
-        setTimeout(() => clone.remove(), 320);
-    }
-
-    /* ============================================
-       点文件夹面包屑
-       ============================================ */
-    function onFolderCrumbClick(folderEl) {
-        const opened = Array.from(folderEl.querySelectorAll('details.essay-file[open]'));
-        opened.forEach(d => closeEssayWithAnim(d));
-
-        refreshBreadcrumb();
-        clearTOC();
-        folderEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-
-    /* ============================================
-       点面包屑"首页"
-       ============================================ */
-    document.addEventListener('click', (e) => {
-        if (!e.target.closest('.crumb-home')) return;
-
-        document.querySelectorAll('details.essay-file[open]').forEach(d => closeEssayWithAnim(d));
-        document.querySelectorAll('details.tree-folder[open]').forEach(f => f.open = false);
-
-        clearTOC();
-        refreshBreadcrumb();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+    /* 点击灯箱背景关闭 */
+    document.addEventListener('click', e => {
+      if (!lb.open) return;
+      if (e.target.matches('.lightbox-backdrop')) closeLightbox();
     });
 
-    /* ============================================
-       随笔懒加载
-       ============================================ */
-    const htmlCache = new Map();
-    const pending = new Map();
+    initPageTransition();
+  }
 
-    function prefetchText(mdPath) {
-        if (htmlCache.has(mdPath) || pending.has(mdPath)) return pending.get(mdPath);
-        const p = fetch(mdPath, { cache: 'no-cache' })
-            .then(res => res.ok ? res.arrayBuffer() : Promise.reject(res.status))
-            .then(buf => new TextDecoder('utf-8').decode(buf));
-        pending.set(mdPath, p);
-        p.catch(() => pending.delete(mdPath));
-        return p;
-    }
-
-    function loadEssay(details) {
-        const body = details.querySelector('.essay-body');
-        const mdPath = details.dataset.md;
-        if (!body || !mdPath) return;
-
-        if (details.dataset.loaded === '1') {
-            if (window.PB && PB.buildTOC) PB.buildTOC(body);
-            return;
-        }
-        details.dataset.loaded = '1';
-
-        if (htmlCache.has(mdPath)) {
-            body.innerHTML = htmlCache.get(mdPath);
-            if (window.PB && PB.buildTOC) PB.buildTOC(body);
-            return;
-        }
-
-        if (!window.PB || !PB.renderPost) {
-            body.innerHTML = '<p class="post-error">渲染脚本未加载</p>';
-            return;
-        }
-
-        body.innerHTML = `
-            <div class="essay-skeleton">
-                <div class="essay-skeleton-line"></div>
-                <div class="essay-skeleton-line"></div>
-                <div class="essay-skeleton-line"></div>
-            </div>`;
-
-        PB.renderPost(body, mdPath, { showHeader: false })
-            .then(() => htmlCache.set(mdPath, body.innerHTML))
-            .catch(() => {});
-    }
-
-    function clearTOC() {
-        const toc = document.getElementById('toc-sidebar');
-        if (!toc) return;
-        toc.innerHTML = '';
-        toc.style.display = 'none';
-    }
-
-    document.querySelectorAll('details.essay-file').forEach(details => {
-        const summary = details.querySelector('summary');
-        const mdPath = details.dataset.md;
-        if (!summary || !mdPath) return;
-        const doPrefetch = () => prefetchText(mdPath).catch(() => {});
-        summary.addEventListener('mouseenter', doPrefetch, { passive: true });
-        summary.addEventListener('focus', doPrefetch);
-    });
-
-    /* ============================================
-       手动接管 essay-file 的点击（捕获阶段）
-       完全由我们决定"关旧、开新"的顺序
-       ============================================ */
-    document.addEventListener('click', (e) => {
-        /* 【新增】点"在新页面打开"图标时，不拦截、不 toggle */
-        if (e.target.closest('.essay-open-link')) return;
-
-        const summary = e.target.closest('details.essay-file > summary');
-        if (!summary) return;
-        const details = summary.parentElement;
-
-        // 阻止浏览器的默认 toggle 行为
-        e.preventDefault();
-
-        // 正在关闭动画中，忽略
-        if (details.classList.contains('closing')) return;
-
-        if (details.open) {
-            /* ---------- 场景 1：关闭当前文章 ---------- */
-            closeEssayWithAnim(details);
-            refreshBreadcrumb();
-
-            const stillOpen = document.querySelector('details.essay-file[open]');
-            if (!stillOpen) clearTOC();
-        } else {
-            /* ---------- 场景 2：打开新文章（先关旧，再开新） ---------- */
-            // 1) 立即关闭其他所有打开的文章
-            document.querySelectorAll('details.essay-file[open]').forEach(d => {
-                if (d !== details) closeEssayWithAnim(d);
-            });
-
-            // 2) 打开新文章
-            details.open = true;
-
-            // 3) 刷新面包屑 + 加载内容
-            refreshBreadcrumb();
-            loadEssay(details);
-        }
-    }, true);
-
-    /* ============================================
-       toggle：只处理文件夹
-       essay-file 的开关已完全由上面接管
-       ============================================ */
-    document.addEventListener('toggle', (e) => {
-        const details = e.target;
-        if (!details || !details.matches) return;
-        if (!details.matches('details.tree-folder')) return;
-
-        // 文件夹关闭 → 内部所有文章立即关闭
-        if (!details.open) {
-            details.querySelectorAll('details.essay-file[open]').forEach(f => {
-                f.open = false;
-            });
-            clearTOC();
-        }
-
-        refreshBreadcrumb();
-    }, true);
-
-    refreshBreadcrumb();
-
-    /* ============================================
-       页面切换动画
-       ============================================ */
-    document.addEventListener('click', (e) => {
-        const link = e.target.closest('a[href]');
-        if (!link) return;
-
-        const href = link.getAttribute('href');
-        const target = link.getAttribute('target');
-
-        if (
-            target === '_blank' ||
-            link.hasAttribute('download') ||
-            !href ||
-            href.startsWith('#') ||
-            href.startsWith('http://') ||
-            href.startsWith('https://') ||
-            href.startsWith('mailto:') ||
-            href.startsWith('tel:') ||
-            href.startsWith('javascript:')
-        ) return;
-
-        e.preventDefault();
-        document.body.classList.add('page-leaving');
-
-        setTimeout(() => {
-            location.href = href;
-        }, 260);
-    });
-
-    window.addEventListener('pageshow', (e) => {
-        if (e.persisted) {
-            document.body.classList.remove('page-leaving');
-            document.body.style.animation = 'none';
-            void document.body.offsetHeight;
-            document.body.style.animation = '';
-        }
-    });
-
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
 })();

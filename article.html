@@ -27,17 +27,28 @@
   <link rel="stylesheet" href="style.css" />
   <link rel="stylesheet" href="post.css" />
 </head>
-<body>
+<body class="article-page">
 
-  <aside id="toc-sidebar" class="toc-sidebar"></aside>
+  <div class="read-progress" aria-hidden="true">
+    <div class="read-progress-bar" id="readProgressBar"></div>
+  </div>
 
-  <nav class="topbar">
-    <a class="nav-brand" href="index.html" style="text-decoration:none;">胖宝基地</a>
+  <aside id="articleListSidebar" class="article-list-sidebar" aria-label="文章列表"></aside>
+  <aside id="toc-sidebar" class="toc-sidebar" aria-label="目录"></aside>
+
+  <nav class="topbar" id="topbar">
+    <a class="back-link" href="index.html" aria-label="返回首页">
+      <i class="fas fa-arrow-left"></i>
+      <span>返回</span>
+    </a>
     <div class="breadcrumb" id="breadcrumb">
       <a class="crumb crumb-home" href="index.html" style="text-decoration:none;">
         <i class="fas fa-home"></i> 首页
       </a>
     </div>
+    <a class="nav-icon-btn" href="index.html#gallery" title="画" aria-label="画作">
+      <i class="fas fa-palette"></i>
+    </a>
     <div class="theme-switcher" id="themeSwitcher">
       <button class="theme-btn" data-theme-value="light" title="亮色" aria-label="亮色"><i class="fas fa-sun"></i></button>
       <button class="theme-btn" data-theme-value="dark" title="暗色" aria-label="暗色"><i class="fas fa-moon"></i></button>
@@ -50,70 +61,16 @@
       <p class="post-loading">加载中…</p>
     </article>
 
+    <nav class="post-nav" id="postNav" aria-label="文章导航"></nav>
+
     <footer class="footer">
-      &copy; 2026 <span>PangBao</span> · powerd by 画画力一族
+      &copy; 2026 <span>PangBao</span> · powered by 画画力一族
     </footer>
   </main>
 
   <script src="vendor/marked.min.js"></script>
-  <script src="post.js"></script>
   <script src="articles.js"></script>
-  <script defer src="script.js"></script>
-
-  <!-- 【新增】article 页专用：根据 ?md= 自动生成面包屑 -->
-  <script>
-    (function () {
-      if (!window.PB || !PB.articles) return;
-      const params = new URLSearchParams(location.search);
-      const md = params.get('md');
-      if (!md) return;
-
-      const bc = document.getElementById('breadcrumb');
-      if (!bc) return;
-
-      // 在 articles.js 里找对应项
-      let hit = null;
-      for (const folder of PB.articles) {
-        for (const item of folder.items || []) {
-          if (item.md === md) {
-            hit = { folder: folder.folder, item };
-            break;
-          }
-        }
-        if (hit) break;
-      }
-      if (!hit) return;
-
-      // 清掉占位（若有），逐段 append
-      bc.innerHTML = '';
-
-      const home = document.createElement('a');
-      home.className = 'crumb crumb-home';
-      home.href = 'index.html';
-      home.style.textDecoration = 'none';
-      home.innerHTML = '<i class="fas fa-home"></i> 首页';
-      bc.appendChild(home);
-
-      const sep1 = document.createElement('span');
-      sep1.className = 'crumb-sep';
-      sep1.textContent = '›';
-      bc.appendChild(sep1);
-
-      const f = document.createElement('span');
-      f.className = 'crumb crumb-depth-0';
-      f.textContent = hit.folder;
-      bc.appendChild(f);
-
-      const sep2 = document.createElement('span');
-      sep2.className = 'crumb-sep';
-      sep2.textContent = '›';
-      bc.appendChild(sep2);
-
-      const t = document.createElement('span');
-      t.className = 'crumb crumb-file';
-      t.textContent = hit.item.title;
-      bc.appendChild(t);
-    })();
-  </script>
+  <script src="post.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

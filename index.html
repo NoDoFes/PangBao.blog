@@ -1,87 +1,125 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>胖宝基地</title>
-    <meta name="description" content="胖宝基地 · 技术、随笔、小说、收藏" />
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>胖宝基地</title>
+  <meta name="description" content="胖宝基地 · 技术、随笔、小说、收藏" />
 
-    <style>
-        :root { color-scheme: dark light; }
-        html { background: #16111f; }
-        html[data-theme="light"] { background: #f7f2eb; }
-        body { margin: 0; }
-    </style>
+  <style>
+    :root { color-scheme: dark light; }
+    html { background: #16111f; }
+    html[data-theme="light"] { background: #f7f2eb; }
+    body { margin: 0; }
+  </style>
 
-    <script>
-        (function () {
-            var t = localStorage.getItem('theme-preference') || 'system';
-            var d = t === 'system'
-                ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
-                : t;
-            document.documentElement.setAttribute('data-theme', d);
-        })();
-    </script>
+  <script>
+    (function () {
+      var t = localStorage.getItem('theme-preference') || 'system';
+      var d = t === 'system'
+        ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+        : t;
+      document.documentElement.setAttribute('data-theme', d);
+    })();
+  </script>
 
-    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
-    <link rel="stylesheet" href="vendor/font-awesome/css/all.min.css" />
-    <link rel="stylesheet" href="style.css" />
-    <link rel="stylesheet" href="post.css" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <link rel="stylesheet" href="vendor/font-awesome/css/all.min.css" />
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="home.css" />
 </head>
 <body>
 
-    <aside id="toc-sidebar" class="toc-sidebar"></aside>
+  <nav class="topbar" id="topbar">
+    <div class="nav-brand">胖宝基地</div>
+    <div class="breadcrumb" id="breadcrumb">
+      <span class="crumb crumb-home">
+        <i class="fas fa-home"></i>
+        <span>首页</span>
+      </span>
+    </div>
+    <a class="nav-icon-btn" href="#gallery" title="画" aria-label="画作">
+      <i class="fas fa-palette"></i>
+    </a>
+    <div class="theme-switcher" id="themeSwitcher">
+      <button class="theme-btn" data-theme-value="light" title="亮色" aria-label="亮色"><i class="fas fa-sun"></i></button>
+      <button class="theme-btn" data-theme-value="dark" title="暗色" aria-label="暗色"><i class="fas fa-moon"></i></button>
+      <button class="theme-btn" data-theme-value="system" title="跟随系统" aria-label="跟随系统"><i class="fas fa-desktop"></i></button>
+    </div>
+  </nav>
 
-    <nav class="topbar" id="topbar">
-        <div class="nav-brand">胖宝基地</div>
-        <div class="breadcrumb" id="breadcrumb">
-            <span class="crumb crumb-home">
-                <i class="fas fa-home"></i>
-                <span>首页</span>
-            </span>
+  <main class="container">
+
+    <header class="hero">
+      <img class="avatar" src="avatar.svg" alt="胖宝头像" width="96" height="96" />
+      <div class="hero-text">
+        <h1 class="hero-name">胖宝</h1>
+        <p class="hero-bio">想减肥但减不下来的胖宝。技术、随笔、小说、收藏，还有那些画没画完的...都堆在这里。</p>
+      </div>
+      <div class="hero-social">
+        <a href="https://github.com/NoDoFes" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i></a>
+        <a href="https://space.bilibili.com/65582750" target="_blank" aria-label="B站"><i class="fab fa-bilibili"></i></a>
+        <a href="mailto:NoDoFes@outlook.com" aria-label="邮箱"><i class="fas fa-envelope"></i></a>
+      </div>
+    </header>
+
+    <!-- 文章 -->
+    <section class="section">
+      <div class="section-label">
+        <i class="fas fa-book-open"></i> 文章
+        <span class="section-line"></span>
+      </div>
+      <div class="article-list" id="articleList"></div>
+    </section>
+
+    <!-- 画（瀑布流） -->
+    <section class="section" id="gallery">
+      <div class="section-label">
+        <i class="fas fa-palette"></i> 画
+        <span class="section-line"></span>
+      </div>
+      <div class="masonry" id="masonry"></div>
+      <p class="section-empty" id="masonryEmpty" hidden>还没有画，下次来就有了 🎨</p>
+    </section>
+
+    <footer class="footer">
+      &copy; 2026 <span>PangBao</span> · powered by 画画力一族
+    </footer>
+
+  </main>
+
+  <!-- 灯箱 -->
+  <div class="lightbox" id="lightbox" hidden aria-hidden="true" role="dialog" aria-modal="true" aria-label="画作查看">
+    <div class="lightbox-backdrop" data-lb-close></div>
+
+    <button class="lightbox-close" data-lb-close aria-label="关闭 (Esc)" title="关闭 (Esc)">
+      <i class="fas fa-xmark"></i>
+    </button>
+
+    <button class="lightbox-nav lightbox-prev" data-lb-prev aria-label="上一张 (←)" title="上一张 (←)">
+      <i class="fas fa-chevron-left"></i>
+    </button>
+
+    <figure class="lightbox-stage">
+      <div class="lightbox-image-wrap">
+        <img class="lightbox-image" id="lbImage" alt="" />
+      </div>
+      <figcaption class="lightbox-caption">
+        <div class="lightbox-caption-main">
+          <span class="lightbox-title" id="lbTitle"></span>
+          <span class="lightbox-date" id="lbDate"></span>
         </div>
-        <div class="theme-switcher" id="themeSwitcher">
-            <button class="theme-btn" data-theme-value="light" title="亮色" aria-label="亮色"><i class="fas fa-sun"></i></button>
-            <button class="theme-btn" data-theme-value="dark" title="暗色" aria-label="暗色"><i class="fas fa-moon"></i></button>
-            <button class="theme-btn" data-theme-value="system" title="跟随系统" aria-label="跟随系统"><i class="fas fa-desktop"></i></button>
-        </div>
-    </nav>
+        <div class="lightbox-counter" id="lbCounter"></div>
+      </figcaption>
+    </figure>
 
-    <main class="container">
+    <button class="lightbox-nav lightbox-next" data-lb-next aria-label="下一张 (→)" title="下一张 (→)">
+      <i class="fas fa-chevron-right"></i>
+    </button>
+  </div>
 
-        <header class="hero">
-            <img class="avatar" src="avatar.svg" alt="胖宝头像" width="96" height="96" />
-            <div class="hero-text">
-                <h1 class="hero-name">胖宝</h1>
-                <p class="hero-bio">
-                    想减肥但减不下来的胖宝。技术、随笔、小说、收藏，都堆在这里。
-                </p>
-            </div>
-            <div class="hero-social">
-                <a href="https://github.com/NoDoFes" target="_blank" aria-label="GitHub"><i class="fab fa-github"></i></a>
-                <a href="https://space.bilibili.com/65582750" target="_blank" aria-label="B站"><i class="fab fa-bilibili"></i></a>
-                <a href="mailto:NoDoFes@outlook.com" aria-label="邮箱"><i class="fas fa-envelope"></i></a>
-            </div>
-        </header>
-
-        <section class="file-tree-section">
-            <div class="section-label">
-                <i class="fas fa-folder-tree" style="color: var(--accent);"></i> 内容
-            </div>
-
-            <!-- ★ 关键：这里是空容器，文章树由 JS 自动生成 -->
-            <div class="file-tree" id="fileTree"></div>
-        </section>
-
-        <footer class="footer">
-            &copy; 2026 <span>PangBao</span> · powerd by 画画力一族
-        </footer>
-
-    </main>
-
-    <script src="vendor/marked.min.js"></script>
-    <script src="post.js"></script>
-    <script src="articles.js"></script>   <!-- ★ 关键：必须引入 -->
-    <script src="script.js"></script>
+  <script src="articles.js"></script>
+  <script src="artworks.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>
