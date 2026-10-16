@@ -22,6 +22,12 @@ import sys
 from datetime import date
 from pathlib import Path
 
+# ── Linux / macOS：启用 GNU readline，修复中文输入退格错位 ──
+try:
+    import readline  # noqa: F401
+except ImportError:
+    pass  # Windows 下没有 readline，忽略即可
+
 # Windows 中文输入输出修复
 if sys.platform == 'win32':
     try:
