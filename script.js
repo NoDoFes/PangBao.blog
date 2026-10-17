@@ -1,9 +1,5 @@
 /* ============================================================
    胖宝基地 · 通用脚本
-   - 主题切换（View Transition 圆形扩散 + CSS 过渡回退）
-   - 顶栏滚动阴影
-   - 首页：文章列表 + 画作瀑布流 + 灯箱
-   - 页面切换（不拦截原生跳转）
    ============================================================ */
 (function () {
   'use strict';
@@ -11,11 +7,6 @@
   const $  = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-  /* ============================================================
-     0. 画作排序（首页瀑布流 & 灯箱共用一个顺序）
-     - date 倒序（无 date 的排最后）
-     - 同日期 / 都无 date：按原始数组顺序
-     ============================================================ */
   function sortArtworks(list) {
     return list
       .map((item, origIdx) => ({ item, origIdx }))
@@ -41,8 +32,7 @@
 
   const getPref = () => localStorage.getItem(THEME_KEY) || 'system';
   const getSysTheme = () => (darkMedia.matches ? 'dark' : 'light');
-  const prefersReduced = () =>
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const prefersReduced = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   const VT_DURATION = 500;
   const CSS_FALLBACK_DURATION = 450;
@@ -74,17 +64,8 @@
       const transition = document.startViewTransition(commit);
       transition.ready.then(() => {
         document.documentElement.animate(
-          {
-            clipPath: [
-              `circle(0px at ${x}px ${y}px)`,
-              `circle(${endRadius}px at ${x}px ${y}px)`
-            ]
-          },
-          {
-            duration: VT_DURATION,
-            easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
-            pseudoElement: '::view-transition-new(root)'
-          }
+          { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${endRadius}px at ${x}px ${y}px)`] },
+          { duration: VT_DURATION, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', pseudoElement: '::view-transition-new(root)' }
         );
       }).catch(() => {});
       return;
@@ -93,16 +74,12 @@
     html.classList.add('theme-transition');
     commit();
     clearTimeout(themeTransitionTimer);
-    themeTransitionTimer = setTimeout(() => {
-      html.classList.remove('theme-transition');
-    }, CSS_FALLBACK_DURATION);
+    themeTransitionTimer = setTimeout(() => html.classList.remove('theme-transition'), CSS_FALLBACK_DURATION);
   }
 
   function startSysListener() {
     if (mediaListener) return;
-    mediaListener = () => {
-      if (getPref() === 'system') applyTheme('system');
-    };
+    mediaListener = () => { if (getPref() === 'system') applyTheme('system'); };
     darkMedia.addEventListener('change', mediaListener);
   }
   function stopSysListener() {
@@ -114,9 +91,7 @@
     const pref = getPref();
     const eff = pref === 'system' ? getSysTheme() : pref;
     html.setAttribute('data-theme', eff);
-    $$('.theme-btn').forEach(btn => {
-      btn.classList.toggle('active', btn.dataset.themeValue === pref);
-    });
+    $$('.theme-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.themeValue === pref));
     if (pref === 'system') startSysListener();
   }
   function setTheme(value, origin) {
@@ -143,35 +118,8 @@
   }
 
   /* ============================================================
-     3. 首页：文章列表（自动从 .md 提取封面）
+     3. 首页：文章列表
      ============================================================ */
-  async function loadCoverFromMd(mdPath) {
-    try {
-      const res = await fetch(mdPath, { cache: 'default' });
-      if (!res.ok) return null;
-      const text = await res.text();
-
-      const m = text.match(/!\[[^\]]*\]\(\s*([^)\s]+?)(?:\s+["'][^"']*["'])?\s*\)/);
-      if (!m) return null;
-
-      let url = m[1].trim();
-      url = url.replace(/^<|>$/g, '');
-      url = url.replace(/^["']|["']$/g, '');
-      url = url.replace(/^\.\//, ''); 
-      url = url.replace(/\/{2,}/g, '/');
-      if (!url) return null;
-
-      if (/^(https?:)?\/\//.test(url) || url.startsWith('/') || url.startsWith('data:')) {
-        return url;
-      }
-
-      const dir = mdPath.substring(0, mdPath.lastIndexOf('/'));
-      return dir ? dir + '/' + url : url;
-    } catch (_) {
-      return null;
-    }
-  }
-
   function createCoverEl(src, animate) {
     const img = document.createElement('img');
     img.className = 'article-item-cover' + (animate ? ' cover-loaded' : '');
@@ -180,15 +128,11 @@
     img.loading = 'lazy';
     img.decoding = 'async';
 
-    // 👇 新增：加载失败时自动隐身，彻底告别丑灰框
     img.onerror = () => {
       img.remove();
       const parent = img.parentElement;
-      if (parent) {
-        parent.classList.remove('has-cover'); 
-      }
+      if (parent) parent.classList.remove('has-cover'); 
     };
-
     return img;
   }
 
@@ -202,7 +146,6 @@
     }
 
     const frag = document.createDocumentFragment();
-    const cards = [];
 
     PB.articles.forEach((item, i) => {
       const a = document.createElement('a');
@@ -210,6 +153,7 @@
       a.href = 'article.html?md=' + encodeURI(item.md);
       a.style.setProperty('--i', i);
 
+      // 直接使用 manage.py 生成好的 cover 字段
       if (item.cover) {
         a.classList.add('has-cover');
         a.appendChild(createCoverEl(item.cover, false));
@@ -245,30 +189,15 @@
       a.appendChild(arrow);
 
       frag.appendChild(a);
-      cards.push({ el: a, item });
     });
 
     container.innerHTML = '';
     container.appendChild(frag);
-
-    cards.forEach(({ el, item }) => {
-      if (item.cover) return;
-      if (item.noCover) return;
-      if (el.querySelector('.article-item-cover')) return;
-
-      loadCoverFromMd(item.md).then(url => {
-        if (!url) return;
-        if (el.querySelector('.article-item-cover')) return;
-        el.insertBefore(createCoverEl(url, true), el.firstChild);
-        el.classList.add('has-cover');
-      });
-    });
   }
 
   /* ============================================================
-     4. 首页：画作瀑布流（全量展示）
+     4. 首页：画作瀑布流
      ============================================================ */
-  /* 供灯箱使用：排序后的画作列表 */
   let masonryList = [];
 
   function buildMasonry() {
@@ -277,13 +206,11 @@
     if (!container || !window.PB || !Array.isArray(PB.artworks)) return;
 
     const list = sortArtworks(PB.artworks);
-
     if (!list.length) {
       if (emptyEl) emptyEl.hidden = false;
       return;
     }
     if (emptyEl) emptyEl.hidden = true;
-
     masonryList = list;
 
     const frag = document.createDocumentFragment();
@@ -301,11 +228,7 @@
       img.alt = item.title || '';
       img.loading = 'lazy';
       img.decoding = 'async';
-      if (item.w && item.h) {
-        img.width = item.w;
-        img.height = item.h;
-      }
-
+      
       const markLoaded = () => img.classList.add('loaded');
       if (img.complete && img.naturalWidth) markLoaded();
       else img.addEventListener('load', markLoaded, { once: true });
@@ -313,10 +236,8 @@
 
       btn.appendChild(img);
 
-      /* hover 浮层：标题 + 日期 */
       const overlay = document.createElement('div');
       overlay.className = 'masonry-overlay';
-
       const t = document.createElement('div');
       t.className = 'masonry-overlay-title';
       t.textContent = item.title || '';
@@ -330,7 +251,6 @@
         meta.appendChild(d);
       }
       overlay.appendChild(meta);
-
       btn.appendChild(overlay);
       frag.appendChild(btn);
     });
@@ -341,8 +261,7 @@
     container.addEventListener('click', e => {
       const btn = e.target.closest('.masonry-item');
       if (!btn) return;
-      const idx = parseInt(btn.dataset.index, 10);
-      openLightbox(idx);
+      openLightbox(parseInt(btn.dataset.index, 10));
     });
   }
 
@@ -350,52 +269,30 @@
      5. 灯箱
      ============================================================ */
   const lb = {
-    el: null,
-    image: null,
-    title: null,
-    date: null,
-    counter: null,
-    prevBtn: null,
-    nextBtn: null,
-    index: 0,
-    open: false,
-    lastFocused: null,
-    keyHandler: null
+    el: null, image: null, title: null, date: null, counter: null,
+    prevBtn: null, nextBtn: null, index: 0, open: false, lastFocused: null, keyHandler: null
   };
 
   function ensureLightbox() {
     if (lb.el) return;
-    lb.el      = $('#lightbox');
+    lb.el = $('#lightbox');
     if (!lb.el) return;
-
-    lb.image   = $('#lbImage');
-    lb.title   = $('#lbTitle');
-    lb.date    = $('#lbDate');
-    lb.counter = $('#lbCounter');
-    lb.prevBtn = lb.el.querySelector('[data-lb-prev]');
-    lb.nextBtn = lb.el.querySelector('[data-lb-next]');
+    lb.image = $('#lbImage'); lb.title = $('#lbTitle'); lb.date = $('#lbDate');
+    lb.counter = $('#lbCounter'); lb.prevBtn = lb.el.querySelector('[data-lb-prev]'); lb.nextBtn = lb.el.querySelector('[data-lb-next]');
 
     lb.el.addEventListener('click', e => {
-      if (e.target.closest('[data-lb-close]'))  { closeLightbox(); return; }
-      if (e.target.closest('[data-lb-prev]'))   { gotoImage(lb.index - 1); return; }
-      if (e.target.closest('[data-lb-next]'))   { gotoImage(lb.index + 1); return; }
+      if (e.target.closest('[data-lb-close]')) closeLightbox();
+      else if (e.target.closest('[data-lb-prev]')) gotoImage(lb.index - 1);
+      else if (e.target.closest('[data-lb-next]')) gotoImage(lb.index + 1);
     });
   }
 
   function swapImage(src, alt) {
     lb.image.src = src;
     lb.image.alt = alt || '';
-    const show = () => {
-      requestAnimationFrame(() => requestAnimationFrame(() => {
-        lb.image.classList.add('lb-in');
-      }));
-    };
-    if (lb.image.complete && lb.image.naturalWidth) {
-      show();
-    } else {
-      lb.image.addEventListener('load',  show, { once: true });
-      lb.image.addEventListener('error', show, { once: true });
-    }
+    const show = () => requestAnimationFrame(() => requestAnimationFrame(() => lb.image.classList.add('lb-in')));
+    if (lb.image.complete && lb.image.naturalWidth) show();
+    else { lb.image.addEventListener('load', show, { once: true }); lb.image.addEventListener('error', show, { once: true }); }
   }
 
   function openLightbox(index) {
@@ -412,22 +309,19 @@
     lb.el.classList.add('lightbox-open');
     document.body.classList.add('lightbox-lock');
 
-    requestAnimationFrame(() => {
-      lb.el.classList.add('lightbox-visible');
-    });
+    requestAnimationFrame(() => lb.el.classList.add('lightbox-visible'));
 
     if (!lb.keyHandler) {
       lb.keyHandler = e => {
         if (!lb.open) return;
-        if (e.key === 'Escape')          { e.preventDefault(); closeLightbox(); }
-        else if (e.key === 'ArrowLeft')  { e.preventDefault(); gotoImage(lb.index - 1); }
+        if (e.key === 'Escape') { e.preventDefault(); closeLightbox(); }
+        else if (e.key === 'ArrowLeft') { e.preventDefault(); gotoImage(lb.index - 1); }
         else if (e.key === 'ArrowRight') { e.preventDefault(); gotoImage(lb.index + 1); }
       };
       document.addEventListener('keydown', lb.keyHandler);
     }
 
     const item = masonryList[lb.index];
-    lb.image.classList.remove('lb-in');
     void lb.image.offsetWidth;
     swapImage(item.src, item.title || '');
     renderCaption(item);
@@ -436,7 +330,6 @@
   function closeLightbox() {
     if (!lb.open || !lb.el) return;
     lb.open = false;
-
     lb.image.classList.remove('lb-in');
     lb.el.classList.remove('lightbox-visible');
     document.body.classList.remove('lightbox-lock');
@@ -449,14 +342,12 @@
       lb.image.classList.remove('lb-in');
     };
 
-    if (prefersReduced()) cleanup();
-    else setTimeout(cleanup, 480);
+    if (prefersReduced()) cleanup(); else setTimeout(cleanup, 480);
 
     if (lb.keyHandler) {
       document.removeEventListener('keydown', lb.keyHandler);
       lb.keyHandler = null;
     }
-
     if (lb.lastFocused && lb.lastFocused.focus) {
       try { lb.lastFocused.focus({ preventScroll: true }); } catch (_) {}
     }
@@ -465,25 +356,18 @@
 
   function gotoImage(i) {
     if (!masonryList.length) return;
-    if (i < 0) i = 0;
-    if (i >= masonryList.length) i = masonryList.length - 1;
+    i = Math.max(0, Math.min(i, masonryList.length - 1));
     if (i === lb.index) return;
     lb.index = i;
-
     const item = masonryList[lb.index];
-
     lb.image.classList.remove('lb-in');
-    setTimeout(() => {
-      swapImage(item.src, item.title || '');
-      renderCaption(item);
-    }, 180);
-
+    setTimeout(() => { swapImage(item.src, item.title || ''); renderCaption(item); }, 180);
     updateLightboxMeta();
   }
 
   function renderCaption(item) {
     lb.title.textContent = item.title || '';
-    lb.date.textContent  = item.date ? '· ' + item.date : '';
+    lb.date.textContent = item.date ? '· ' + item.date : '';
     lb.date.hidden = !item.date;
     updateLightboxMeta();
   }
@@ -496,79 +380,31 @@
   }
 
   /* ============================================================
-     6. 首页面包屑点击回顶
-     ============================================================ */
-  function initHomeBreadcrumb() {
-    const bc = $('#breadcrumb');
-    if (!bc) return;
-    bc.querySelector('.crumb-home')?.addEventListener('click', () => {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  }
-
-  /* ============================================================
-     7. 页面切换（不拦截原生跳转）
-     ============================================================ */
-  function initPageTransition() {
-    document.addEventListener('click', e => {
-      const link = e.target.closest('a[href]');
-      if (!link) return;
-      const href = link.getAttribute('href');
-      const target = link.getAttribute('target');
-      if (
-        target === '_blank' || link.hasAttribute('download') ||
-        !href || href.startsWith('#') ||
-        /^(https?:|mailto:|tel:|javascript:)/.test(href)
-      ) return;
-      document.body.classList.add('page-leaving');
-    });
-    window.addEventListener('pageshow', e => {
-      if (e.persisted) document.body.classList.remove('page-leaving');
-    });
-  }
-
-  /* ============================================================
-     8. 启动
+     6. 启动
      ============================================================ */
   function boot() {
     $$('.theme-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        setTheme(btn.dataset.themeValue, { x: e.clientX, y: e.clientY });
-      });
+      btn.addEventListener('click', (e) => setTheme(btn.dataset.themeValue, { x: e.clientX, y: e.clientY }));
     });
     initTheme();
     initTopbarScroll();
 
-    /* 首页专属 */
     if (document.getElementById('articleList')) {
       buildArticleList();
-      initHomeBreadcrumb();
+      $('#breadcrumb')?.querySelector('.crumb-home')?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
     }
     if (document.getElementById('masonry')) {
       buildMasonry();
-
-      /* 若 URL 带 #art-N，自动打开对应灯箱 */
       const m = location.hash.match(/^#art-(\d+)$/);
       if (m) {
         const idx = parseInt(m[1], 10);
-        if (!isNaN(idx)) {
-          requestAnimationFrame(() => openLightbox(idx));
-        }
+        if (!isNaN(idx)) requestAnimationFrame(() => openLightbox(idx));
       }
     }
 
-    /* 点击灯箱背景关闭 */
-    document.addEventListener('click', e => {
-      if (!lb.open) return;
-      if (e.target.matches('.lightbox-backdrop')) closeLightbox();
-    });
-
-    initPageTransition();
+    document.addEventListener('click', e => { if (lb.open && e.target.matches('.lightbox-backdrop')) closeLightbox(); });
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })();
