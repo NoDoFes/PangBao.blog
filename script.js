@@ -157,6 +157,8 @@
       let url = m[1].trim();
       url = url.replace(/^<|>$/g, '');
       url = url.replace(/^["']|["']$/g, '');
+      url = url.replace(/^\.\//, ''); 
+      url = url.replace(/\/{2,}/g, '/');
       if (!url) return null;
 
       if (/^(https?:)?\/\//.test(url) || url.startsWith('/') || url.startsWith('data:')) {
@@ -177,6 +179,16 @@
     img.alt = '';
     img.loading = 'lazy';
     img.decoding = 'async';
+
+    // 👇 新增：加载失败时自动隐身，彻底告别丑灰框
+    img.onerror = () => {
+      img.remove();
+      const parent = img.parentElement;
+      if (parent) {
+        parent.classList.remove('has-cover'); 
+      }
+    };
+
     return img;
   }
 

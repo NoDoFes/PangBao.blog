@@ -2,31 +2,55 @@
 # -*- coding: utf-8 -*-
 """
 胖宝基地 · 内容管理脚本
-用法：python manage.py
+================================================
+交互式菜单：
+    python3 manage.py            # 打开菜单
+    python3 manage.py menu       # 同上
+
+命令行模式（不依赖 input，永远可靠）：
+    python3 manage.py sync       # 同步数据（重新生成 articles.js / artworks.js）
+    python3 manage.py list       # 查看所有文章和画作
+    python3 manage.py help       # 显示帮助
 
 目录约定：
-  essays/
-    ├── articles.json
-    ├── 2026-10-11/
-    │   ├── 2026-10-11.md     ← 文章正文（与文件夹同名）
-    │   ├── sketch.jpg         ← 配图
-    │   └── color.jpg
-    └── 2026-09-28/
-        ├── 2026-09-28.md
-        └── screenshot.png
+    essays/
+      ├── articles.json
+      ├── 2026-10-11/
+      │   ├── 2026-10-11.md
+      │   ├── sketch.jpg
+      │   └── color.jpg
+      └── 2026-09-28/
+          ├── 2026-09-28.md
+          └── screenshot.png
 """
 import json
+import os
 import re
 import shutil
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
 
-# ── Linux / macOS：启用 GNU readline，修复中文输入退格错位 ──
-try:
-    import readline  # noqa: F401
-except ImportError:
-    pass  # Windows 下没有 readline，忽略即可
+
+# ============================================================
+# 环境准备
+# ============================================================
+
+def _in_vscode():
+    """检测是否运行在 VS Code 集成终端"""
+    if os.environ.get('TERM_PROGRAM') == 'vscode':
+        return True
+    return any(k.startswith('VSCODE_') for k in os.environ)
+
+
+# 在真正的 TTY 上启用 readline（修复中文输入退格）
+# VS Code 集成终端下跳过，避免 readline 吞掉回车
+if sys.stdin.isatty() and not _in_vscode():
+    try:
+        import readline  # noqa: F401
+    except ImportError:
+        pass
 
 # Windows 中文输入输出修复
 if sys.platform == 'win32':
@@ -36,17 +60,18 @@ if sys.platform == 'win32':
     except Exception:
         pass
 
+
+# ============================================================
+# 路径常量
+# ============================================================
 ROOT = Path(__file__).resolve().parent
 
-# 目录
-ART_DIR = ROOT / 'arts'          # 画作
-ESSAYS_DIR = ROOT / 'essays'     # 文章及其配图
+ART_DIR    = ROOT / 'arts'
+ESSAYS_DIR = ROOT / 'essays'
 
-# 数据文件
 ARTICLES_JSON = ESSAYS_DIR / 'articles.json'
-ARTWORKS_JSON = ART_DIR / 'artworks.json'
+ARTWORKS_JSON = ART_DIR   / 'artworks.json'
 
-# 前端读取的生成产物
 ARTICLES_JS = ROOT / 'articles.js'
 ARTWORKS_JS = ROOT / 'artworks.js'
 
@@ -81,39 +106,26 @@ def save_json(path, data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 
-def write_articles_js(articles):
+def _write_js(path, varname, data):
     header = (
         '// ============================================\n'
-        '// 文章清单 —— 由 manage.py 自动生成\n'
-        '// 要添加 / 修改文章，请运行 manage.py\n'
+        '// 由 manage.py 自动生成\n'
+        '// 要添加 / 修改，请运行 manage.py\n'
         '// ============================================\n'
         'window.PB = window.PB || {};\n\n'
-        'PB.articles = '
+        f'PB.{varname} = '
     )
-    body = json.dumps(articles, ensure_ascii=False, indent=2)
-    with ARTICLES_JS.open('w', encoding='utf-8') as f:
-        f.write(header + body + ';\n')
-
-
-def write_artworks_js(artworks):
-    header = (
-        '// ============================================\n'
-        '// 画作清单 —— 由 manage.py 自动生成\n'
-        '// 要添加 / 修改画作，请运行 manage.py\n'
-        '// ============================================\n'
-        'window.PB = window.PB || {};\n\n'
-        'PB.artworks = '
-    )
-    body = json.dumps(artworks, ensure_ascii=False, indent=2)
-    with ARTWORKS_JS.open('w', encoding='utf-8') as f:
+    body = json.dumps(data, ensure_ascii=False, indent=2)
+    with path.open('w', encoding='utf-8') as f:
         f.write(header + body + ';\n')
 
 
 def sync_all():
+    """把 JSON 数据同步到前端 JS"""
     articles = load_json(ARTICLES_JSON)
     artworks = load_json(ARTWORKS_JSON)
-    write_articles_js(articles)
-    write_artworks_js(artworks)
+    _write_js(ARTICLES_JS, 'articles', articles)
+    _write_js(ARTWORKS_JS, 'artworks', artworks)
 
 
 def today():
@@ -138,6 +150,14 @@ def ask_choice(msg, max_n, allow_cancel=True):
         print(f'  请输入 1 ~ {max_n} 之间的数字' + ('，回车取消' if allow_cancel else ''))
 
 
+def pause(msg='按回车返回菜单…'):
+    """暂停，等用户按回车"""
+    try:
+        input(f'\n  {msg}')
+    except (EOFError, KeyboardInterrupt):
+        print()
+
+
 def list_art_images():
     if not ART_DIR.exists():
         return []
@@ -148,7 +168,6 @@ def list_art_images():
 
 
 def is_new_structure(md_rel):
-    """判断 md 路径是否是 essays/子文件夹/xxx.md 结构"""
     try:
         p = (ROOT / md_rel).resolve()
         return (
@@ -160,34 +179,26 @@ def is_new_structure(md_rel):
 
 
 def auto_migrate_json():
-    """首次运行：如果 JSON 不存在但 .js 里有数据，尝试迁移"""
     if not ARTICLES_JSON.exists() and ARTICLES_JS.exists():
-        try:
-            text = ARTICLES_JS.read_text(encoding='utf-8')
-            m = re.search(r'PB\.articles\s*=\s*(\[[\s\S]*?\])\s*;', text)
-            if m:
-                js = m.group(1)
-                js = re.sub(r'([{,]\s*)([A-Za-z_][\w-]*)\s*:', r'\1"\2":', js)
-                js = re.sub(r"'((?:[^'\\]|\\.)*)'", lambda mm: json.dumps(mm.group(1)), js)
-                data = json.loads(js)
-                save_json(ARTICLES_JSON, data)
-                print(f'  ✓ 已从 articles.js 迁移 {len(data)} 条文章 → essays/articles.json')
-        except Exception as e:
-            print(f'  [提示] 未能自动迁移 articles.js（{e}）')
-
+        _try_migrate(ARTICLES_JS, ARTICLES_JSON, 'articles')
     if not ARTWORKS_JSON.exists() and ARTWORKS_JS.exists():
-        try:
-            text = ARTWORKS_JS.read_text(encoding='utf-8')
-            m = re.search(r'PB\.artworks\s*=\s*(\[[\s\S]*?\])\s*;', text)
-            if m:
-                js = m.group(1)
-                js = re.sub(r'([{,]\s*)([A-Za-z_][\w-]*)\s*:', r'\1"\2":', js)
-                js = re.sub(r"'((?:[^'\\]|\\.)*)'", lambda mm: json.dumps(mm.group(1)), js)
-                data = json.loads(js)
-                save_json(ARTWORKS_JSON, data)
-                print(f'  ✓ 已从 artworks.js 迁移 {len(data)} 条画作 → arts/artworks.json')
-        except Exception as e:
-            print(f'  [提示] 未能自动迁移 artworks.js（{e}）')
+        _try_migrate(ARTWORKS_JS, ARTWORKS_JSON, 'artworks')
+
+
+def _try_migrate(js_path, json_path, varname):
+    try:
+        text = js_path.read_text(encoding='utf-8')
+        m = re.search(rf'PB\.{varname}\s*=\s*(\[[\s\S]*?\])\s*;', text)
+        if not m:
+            return
+        js = m.group(1)
+        js = re.sub(r'([{,]\s*)([A-Za-z_][\w-]*)\s*:', r'\1"\2":', js)
+        js = re.sub(r"'((?:[^'\\]|\\.)*)'", lambda mm: json.dumps(mm.group(1)), js)
+        data = json.loads(js)
+        save_json(json_path, data)
+        print(f'  ✓ 已从 {js_path.name} 迁移 {len(data)} 条 → {json_path.relative_to(ROOT)}')
+    except Exception as e:
+        print(f'  [提示] 未能自动迁移 {js_path.name}（{e}）')
 
 
 # ============================================================
@@ -205,20 +216,17 @@ def add_article():
     d = prompt('日期 (YYYY-MM-DD)', today())
     folder = prompt('文件夹名', d)
 
-    # 若文件夹已存在且已有同名 md，提示换名
     while (ESSAYS_DIR / folder / f'{folder}.md').exists():
         print(f'  ⚠ essays/{folder}/{folder}.md 已存在')
         folder = prompt('换一个文件夹名', folder + '-2')
 
     post_dir = ESSAYS_DIR / folder
-    post_md = post_dir / f'{folder}.md'
+    post_md  = post_dir / f'{folder}.md'
 
     desc = prompt('简介（可留空）')
 
-    # 建目录
     post_dir.mkdir(parents=True, exist_ok=True)
 
-    # 建 md（仅当不存在）
     if not post_md.exists():
         tpl = (
             f'---\n'
@@ -226,14 +234,11 @@ def add_article():
             f'date: {d}\n'
             f'---\n\n'
             f'# {title}\n\n'
-            f'<!-- 把图片放进这个文件夹（essays/{folder}/），然后在正文里这样引用：\n'
-            f'     ![说明](图片名.jpg)\n'
-            f'     正文的第一张图会自动成为首页封面。 -->\n\n'
+            f'<!-- 把图片放进 essays/{folder}/，md 里用 ![](图片名.jpg) 引用 -->\n\n'
             f'（在这里写正文…）\n'
         )
         post_md.write_text(tpl, encoding='utf-8')
         print(f'  ✓ 已创建文章：essays/{folder}/{folder}.md')
-        print(f'  ✓ 已创建文件夹：essays/{folder}/')
         print(f'  💡 把图片放进 essays/{folder}/，md 里用 ![](图片名.jpg) 引用')
     else:
         print(f'  ℹ 已存在：essays/{folder}/{folder}.md')
@@ -244,8 +249,7 @@ def add_article():
 
     articles.insert(0, item)
     save_json(ARTICLES_JSON, articles)
-    write_articles_js(articles)
-    print('  ✓ 文章已添加')
+    print('  ✓ 文章已添加（数据源已更新，记得同步）')
 
 
 def list_articles():
@@ -276,13 +280,13 @@ def edit_article():
     print('  （直接回车保持原值）\n')
 
     new_title = prompt('标题', item.get('title', ''))
-    new_date = prompt('日期', item.get('date', ''))
-    new_md = prompt('md 路径', item.get('md', ''))
-    new_desc = prompt('简介', item.get('desc', ''))
+    new_date  = prompt('日期',   item.get('date', ''))
+    new_md    = prompt('md 路径', item.get('md', ''))
+    new_desc  = prompt('简介',   item.get('desc', ''))
 
     item['title'] = new_title
-    item['date'] = new_date
-    item['md'] = new_md
+    item['date']  = new_date
+    item['md']    = new_md
     if new_desc:
         item['desc'] = new_desc
     elif 'desc' in item:
@@ -290,8 +294,7 @@ def edit_article():
 
     articles[n - 1] = item
     save_json(ARTICLES_JSON, articles)
-    write_articles_js(articles)
-    print('  ✓ 已保存')
+    print('  ✓ 已保存（数据源已更新，记得同步）')
 
 
 def delete_article():
@@ -306,20 +309,16 @@ def delete_article():
         return
 
     item = articles[n - 1]
-    confirm = prompt(f'  确认删除「{item.get("title")}」？(y/N)', 'N')
-    if confirm.lower() != 'y':
+    if prompt(f'  确认删除「{item.get("title")}」？(y/N)', 'N').lower() != 'y':
         print('  已取消')
         return
 
     articles.pop(n - 1)
     save_json(ARTICLES_JSON, articles)
-    write_articles_js(articles)
 
     md = item.get('md', '')
     if md:
-        md_path = ROOT / md
-
-        # 新结构：整个文件夹一起删
+        md_path  = ROOT / md
         post_dir = md_path.parent
         try:
             under_essays = (
@@ -335,13 +334,12 @@ def delete_article():
                 shutil.rmtree(post_dir)
                 print(f'  ✓ 已删除文件夹：essays/{folder_name}/')
         else:
-            # 旧结构兜底
             if md_path.exists() and md_path.is_file():
                 if prompt(f'  是否删除 md 文件 {md} ？(y/N)', 'N').lower() == 'y':
                     md_path.unlink()
                     print(f'  ✓ 已删除：{md}')
 
-    print('  ✓ 已从列表中移除')
+    print('  ✓ 已从列表中移除（数据源已更新，记得同步）')
 
 
 # ============================================================
@@ -349,8 +347,7 @@ def delete_article():
 # ============================================================
 def migrate_to_folders():
     print('\n--- 迁移为文件夹结构 ---')
-    print('  essays/2026-10-11.md  →  essays/2026-10-11/2026-10-11.md')
-    print()
+    print('  essays/2026-10-11.md  →  essays/2026-10-11/2026-10-11.md\n')
 
     articles = load_json(ARTICLES_JSON)
     if not articles:
@@ -362,19 +359,13 @@ def migrate_to_folders():
 
     for item in articles:
         old_md = item.get('md', '')
-        if not old_md:
-            new_articles.append(item)
-            continue
-
-        # 已是新结构，跳过
-        if is_new_structure(old_md):
-            print(f'  · 已是新结构：{old_md}')
+        if not old_md or is_new_structure(old_md):
+            if old_md:
+                print(f'  · 已是新结构：{old_md}')
             new_articles.append(item)
             continue
 
         md_path = ROOT / old_md
-
-        # 必须在 essays/ 顶层
         try:
             if md_path.parent.resolve() != ESSAYS_DIR.resolve():
                 print(f'  ! 跳过（不在 essays/ 顶层）：{old_md}')
@@ -389,10 +380,9 @@ def migrate_to_folders():
             new_articles.append(item)
             continue
 
-        # essays/2026-10-11.md → essays/2026-10-11/2026-10-11.md
-        stem = md_path.stem
+        stem    = md_path.stem
         new_dir = ESSAYS_DIR / stem
-        new_md = new_dir / f'{stem}.md'
+        new_md  = new_dir / f'{stem}.md'
 
         if new_md.exists():
             print(f'  ! 跳过（目标已存在）：essays/{stem}/{stem}.md')
@@ -400,7 +390,6 @@ def migrate_to_folders():
             continue
 
         new_dir.mkdir(parents=True, exist_ok=True)
-
         try:
             shutil.move(str(md_path), str(new_md))
         except Exception as e:
@@ -409,7 +398,6 @@ def migrate_to_folders():
             continue
 
         print(f'  ✓ {old_md}  →  essays/{stem}/{stem}.md')
-
         new_item = dict(item)
         new_item['md'] = f'essays/{stem}/{stem}.md'
         new_articles.append(new_item)
@@ -417,9 +405,7 @@ def migrate_to_folders():
 
     if migrated > 0:
         save_json(ARTICLES_JSON, new_articles)
-        write_articles_js(new_articles)
-        print(f'\n  ✓ 共迁移 {migrated} 篇')
-        print('  💡 现在 md 里的图片可以简化为：![](图片名.jpg)')
+        print(f'\n  ✓ 共迁移 {migrated} 篇（数据源已更新，记得同步）')
     else:
         print('\n  没有需要迁移的内容')
 
@@ -476,20 +462,19 @@ def add_artwork():
     stem = re.sub(r'^\d{4}-\d{2}-\d{2}[-_]?', '', stem)
     default_title = stem or '未命名'
 
-    title = prompt('标题', default_title)
-    d = prompt('日期 (YYYY-MM-DD)', today())
+    title    = prompt('标题', default_title)
+    d        = prompt('日期 (YYYY-MM-DD)', today())
     tags_raw = prompt('标签（逗号分隔，可留空）')
-    tags = [t.strip() for t in tags_raw.replace('，', ',').split(',') if t.strip()]
+    tags     = [t.strip() for t in tags_raw.replace('，', ',').split(',') if t.strip()]
 
     item = {'src': src}
     if title: item['title'] = title
-    if d:     item['date'] = d
-    if tags:  item['tags'] = tags
+    if d:     item['date']  = d
+    if tags:  item['tags']  = tags
 
     artworks.insert(0, item)
     save_json(ARTWORKS_JSON, artworks)
-    write_artworks_js(artworks)
-    print('  ✓ 画作已添加（date 最新的会自动出现在首页）')
+    print('  ✓ 画作已添加（数据源已更新，记得同步）')
 
 
 def list_artworks():
@@ -499,7 +484,7 @@ def list_artworks():
         print('  （空）')
         return
     for i, a in enumerate(artworks, 1):
-        d = a.get('date', '----------')
+        d    = a.get('date', '----------')
         tags = ' ' + ','.join('#' + t for t in a.get('tags', [])) if a.get('tags') else ''
         print(f'  {i:>2}. [{d}] {a.get("title", "未命名")}{tags}')
         print(f'      → {a.get("src", "?")}')
@@ -521,9 +506,8 @@ def edit_artwork():
     print('  （直接回车保持原值）\n')
 
     new_title = prompt('标题', item.get('title', ''))
-    new_date  = prompt('日期',   item.get('date', ''))
-    new_tags  = prompt('标签（逗号分隔，输入 - 清空）',
-                       ','.join(item.get('tags', [])))
+    new_date  = prompt('日期', item.get('date', ''))
+    new_tags  = prompt('标签（逗号分隔，输入 - 清空）', ','.join(item.get('tags', [])))
 
     if new_title:
         item['title'] = new_title
@@ -541,8 +525,7 @@ def edit_artwork():
 
     artworks[n - 1] = item
     save_json(ARTWORKS_JSON, artworks)
-    write_artworks_js(artworks)
-    print('  ✓ 已保存')
+    print('  ✓ 已保存（数据源已更新，记得同步）')
 
 
 def delete_artwork():
@@ -563,60 +546,158 @@ def delete_artwork():
 
     artworks.pop(n - 1)
     save_json(ARTWORKS_JSON, artworks)
-    write_artworks_js(artworks)
-    print('  ✓ 已删除（图片文件保留在 arts/ 中）')
+    print('  ✓ 已删除（图片文件保留在 arts/ 中，记得同步）')
 
 
 # ============================================================
-# 主菜单
+# 命令实现
 # ============================================================
-def main():
-    ensure_dirs()
-    auto_migrate_json()
+def cmd_sync():
+    """CLI 命令：直接同步，无确认"""
+    sync_all()
+    print('  ✓ 已重新生成 articles.js 和 artworks.js')
 
+
+def cmd_sync_menu():
+    """菜单命令：先确认，再通过子进程调用 python3 manage.py sync（输出可见）"""
+    print()
+    ans = input('  确认同步数据？(y/N)：').strip().lower()
+    if ans not in ('y', 'yes'):
+        print('  已取消')
+        return
+
+    script = str(ROOT / 'manage.py')
+    print()
+    print('  $ python3 manage.py sync')
+    print('  ' + '─' * 42)
+
+    try:
+        result = subprocess.run(
+            [sys.executable, script, 'sync'],
+            cwd=str(ROOT),
+        )
+    except KeyboardInterrupt:
+        print('\n  已中断')
+        return
+
+    print('  ' + '─' * 42)
+    if result.returncode == 0:
+        print('  ✓ 同步完成')
+    else:
+        print(f'  ✗ 同步失败（退出码 {result.returncode}）')
+
+
+def cmd_list():
+    """列出所有文章和画作"""
+    list_articles()
+    list_artworks()
+
+
+# ============================================================
+# 交互式菜单
+# ============================================================
+MENU_ITEMS = [
+    ('1', '添加文章',      add_article),
+    ('2', '添加画作',      add_artwork),
+    ('3', '查看文章列表',  list_articles),
+    ('4', '查看画作列表',  list_artworks),
+    ('5', '编辑文章',      edit_article),
+    ('6', '编辑画作',      edit_artwork),
+    ('7', '删除文章',      delete_article),
+    ('8', '删除画作',      delete_artwork),
+    ('9', '同步数据',      cmd_sync_menu),
+    ('m', '迁移旧结构',    migrate_to_folders),
+]
+
+
+# 哪些操作执行完后自动 pause（等用户按回车再回菜单）
+# 说明：'9' 已经在 cmd_sync_menu 里展示过输出，也可以 pause；
+#       这里统一对所有操作 pause，用户体验最一致
+PAUSE_AFTER = True
+
+
+def run_menu():
     while True:
         print()
         print('=' * 44)
         print('  胖宝基地 · 内容管理')
         print('=' * 44)
-        print('  1. 添加文章')
-        print('  2. 添加画作')
-        print('  3. 查看文章列表')
-        print('  4. 查看画作列表')
-        print('  5. 编辑文章')
-        print('  6. 编辑画作')
-        print('  7. 删除文章')
-        print('  8. 删除画作')
-        print('  9. 重新生成 JS（修复用）')
-        print('  M. 迁移旧结构（.md → 文件夹/日期.md）')
+        for key, label, _ in MENU_ITEMS:
+            print(f'  {key}. {label}')
         print('  0. 退出')
         print('=' * 44)
-        choice = input('  请选择：').strip()
 
         try:
-            if   choice == '1': add_article()
-            elif choice == '2': add_artwork()
-            elif choice == '3': list_articles()
-            elif choice == '4': list_artworks()
-            elif choice == '5': edit_article()
-            elif choice == '6': edit_artwork()
-            elif choice == '7': delete_article()
-            elif choice == '8': delete_artwork()
-            elif choice == '9':
-                sync_all()
-                print('  ✓ 已重新生成 articles.js 和 artworks.js')
-            elif choice.lower() == 'm':
-                migrate_to_folders()
-            elif choice == '0':
-                print('  拜拜 👋')
-                break
-            else:
-                print('  无效选项')
+            choice = input('  请选择：').strip()
+        except (EOFError, KeyboardInterrupt):
+            print('\n  拜拜 👋')
+            return
+
+        if choice == '0':
+            print('  拜拜 👋')
+            return
+
+        key = choice.lower() if choice.lower() == 'm' else choice
+        action = next((a for k, _, a in MENU_ITEMS if k == key), None)
+        if action is None:
+            print('  无效选项')
+            continue
+
+        try:
+            action()
         except KeyboardInterrupt:
             print('\n  已取消当前操作')
-            continue
         except Exception as e:
             print(f'  [错误] {e}')
+
+        if PAUSE_AFTER:
+            pause()
+
+
+# ============================================================
+# CLI 命令表
+# ============================================================
+CLI_COMMANDS = {
+    'sync': cmd_sync,
+    's':    cmd_sync,
+    'list': cmd_list,
+    'ls':   cmd_list,
+    'menu': run_menu,
+}
+
+
+def print_help():
+    print(__doc__)
+    print('=' * 44)
+    print('  可用命令：')
+    print('    sync / s      同步数据（重新生成 JS）')
+    print('    list / ls     查看所有文章和画作')
+    print('    menu          打开交互式菜单')
+    print('    help / -h     显示本帮助')
+    print('=' * 44)
+
+
+# ============================================================
+# 主入口
+# ============================================================
+def main():
+    ensure_dirs()
+    auto_migrate_json()
+
+    if len(sys.argv) > 1:
+        cmd = sys.argv[1].lower()
+        if cmd in ('-h', '--help', 'help'):
+            print_help()
+            return
+        action = CLI_COMMANDS.get(cmd)
+        if action is None:
+            print(f'  未知命令：{cmd}\n')
+            print_help()
+            return
+        action()
+        return
+
+    run_menu()
 
 
 if __name__ == '__main__':

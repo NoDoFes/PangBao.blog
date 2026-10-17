@@ -46,6 +46,81 @@ window.PB = window.PB || {};
     return chinese + english + numbers;
   }
 
+  /* ---------------- 代码块增强（仅负责生成 UI） ---------------- */
+
+  function enhanceCodeBlocks(container) {
+    const preBlocks = container.querySelectorAll('pre');
+    preBlocks.forEach(pre => {
+      // 避免重复处理
+      if (pre.parentElement.classList.contains('code-block-wrapper')) return;
+
+      // 创建包裹容器
+      const wrapper = document.createElement('div');
+      wrapper.className = 'code-block-wrapper';
+      pre.parentNode.insertBefore(wrapper, pre);
+      wrapper.appendChild(pre);
+
+      // 创建复制按钮（不在此处绑定点击事件）
+      const btn = document.createElement('button');
+      btn.className = 'copy-code-btn';
+      btn.type = 'button';
+      btn.setAttribute('aria-label', '复制代码');
+      btn.innerHTML = '<i class="far fa-copy"></i> <span>复制</span>';
+
+      wrapper.appendChild(btn);
+    });
+  }
+
+  /* ---------------- 代码块复制事件委托（提升性能，避免绑定上百个事件） ---------------- */
+
+  function initCodeCopyEvent(container) {
+    // 防止重复绑定事件
+    if (container.dataset.copyInit) return;
+    container.dataset.copyInit = 'true';
+
+    container.addEventListener('click', async (e) => {
+      const btn = e.target.closest('.copy-code-btn');
+      if (!btn) return;
+
+      const wrapper = btn.closest('.code-block-wrapper');
+      const pre = wrapper.querySelector('pre');
+      const codeEl = pre.querySelector('code');
+      const text = codeEl ? codeEl.innerText : pre.innerText;
+
+      try {
+        await navigator.clipboard.writeText(text);
+        showSuccess(btn);
+      } catch (err) {
+        // 降级兜底：针对 file:// 等非安全环境
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+          document.execCommand('copy');
+          showSuccess(btn);
+        } catch (e) {
+          btn.innerHTML = '<i class="fas fa-times"></i> <span>失败</span>';
+          setTimeout(() => reset(btn), 2000);
+        }
+        document.body.removeChild(textarea);
+      }
+    });
+
+    function showSuccess(btn) {
+      btn.innerHTML = '<i class="fas fa-check"></i> <span>已复制</span>';
+      btn.classList.add('success');
+      setTimeout(() => reset(btn), 2000);
+    }
+
+    function reset(btn) {
+      btn.innerHTML = '<i class="far fa-copy"></i> <span>复制</span>';
+      btn.classList.remove('success');
+    }
+  }
+
   /* ---------------- 文章头 ---------------- */
 
   function buildPostHeader({ title, description, date, tags, wordCount, readTime }) {
@@ -335,18 +410,66 @@ window.PB = window.PB || {};
         const { data, content } = parseFrontMatter(md);
         container.innerHTML = marked.parse(content, { gfm: true, breaks: true });
 
-        /* ★ 修正 md 中相对路径的图片：
-           md 在 essays/xxx/xxx.md，article.html 在根目录
-           所以 md 里的 ![](sketch.jpg) 需要改成 essays/xxx/sketch.jpg */
+        /* ★ 增强代码块（添加复制按钮 UI） */
+        enhanceCodeBlocks(container);
+
+        /* ★ 初始化代码块事件委托（只需绑定一次点击事件） */
+        initCodeCopyEvent(container);
+
+        /* ★ 修正 md 中相对路径的图片 & 自动生成图注 */
         const mdDir = mdPath.substring(0, mdPath.lastIndexOf('/'));
-        if (mdDir) {
-          container.querySelectorAll('img').forEach(img => {
-            const src = img.getAttribute('src');
-            if (!src) return;
-            if (/^(https?:)?\/\//.test(src) || src.startsWith('/') || src.startsWith('data:')) return;
+        container.querySelectorAll('img').forEach(img => {
+          // 1. 处理相对路径
+          const src = img.getAttribute('src');
+          if (src && mdDir && !/^(https?:)?\/\//.test(src) && !src.startsWith('/') && !src.startsWith('data:')) {
             img.setAttribute('src', mdDir + '/' + src);
-          });
-        }
+          }
+
+          // 2. 自动生成图注
+          let captionText = img.getAttribute('alt') || '';
+          const parent = img.parentNode;
+
+          // 如果 alt 为空，尝试提取图片后面的文字（应对 `![](img.png)\n这里是图注` 的写法）
+          if (!captionText && parent && parent.tagName === 'P') {
+            let nextNode = img.nextSibling;
+            let texts = [];
+            while (nextNode) {
+              if (nextNode.nodeType === 3) { // 文本节点
+                texts.push(nextNode.textContent);
+              } else if (nextNode.tagName === 'BR') {
+                // 忽略换行符
+              } else {
+                break; 
+              }
+              nextNode = nextNode.nextSibling;
+            }
+            const rawText = texts.join('').trim();
+            if (rawText) {
+              captionText = rawText;
+            }
+          }
+
+          // 3. 如果有图注，构建 figure
+          if (captionText) {
+            const figure = document.createElement('figure');
+            figure.className = 'md-figure';
+            
+            // 把图片包进去
+            figure.appendChild(img); 
+            
+            // 创建图注
+            const figcaption = document.createElement('figcaption');
+            figcaption.textContent = captionText;
+            figure.appendChild(figcaption);
+
+            // 插入到页面，替换掉原本的 <p> 标签以避免嵌套错误
+            if (parent && parent.tagName === 'P') {
+              parent.parentNode.replaceChild(figure, parent);
+            } else {
+              parent.replaceChild(figure, img);
+            }
+          }
+        });
 
         const h1 = container.querySelector('h1');
         const title = h1 ? h1.textContent.trim() : (data.title || '未命名');
