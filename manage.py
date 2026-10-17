@@ -21,7 +21,6 @@ import sys
 from datetime import date
 from pathlib import Path
 
-
 # ============================================================
 # 环境准备
 # ============================================================
@@ -87,33 +86,59 @@ def _write_js(path, varname, data):
         f.write(header + body + ';\n')
 
 # ============================================================
+# ★ 新增：多选解析工具
+# ============================================================
+def parse_multi_choice(raw, max_n):
+    """解析用户输入的多选字符串，如 '1, 3-5, 8' 或 'all'"""
+    raw = raw.strip().lower()
+    if raw in ('all', '*'):
+        return list(range(1, max_n + 1))
+    
+    results = set()
+    # 按逗号分割
+    parts = raw.replace('，', ',').split(',')
+    for part in parts:
+        part = part.strip()
+        if not part: continue
+        
+        # 处理范围 (如 3-5)
+        if '-' in part:
+            try:
+                start, end = map(int, part.split('-'))
+                if start > end: start, end = end, start
+                for i in range(start, end + 1):
+                    if 1 <= i <= max_n: results.add(i)
+            except ValueError:
+                pass
+        # 处理单个数字
+        elif part.isdigit():
+            n = int(part)
+            if 1 <= n <= max_n: results.add(n)
+            
+    return sorted(list(results), reverse=True)  # 倒序排列，为了安全删除
+
+# ============================================================
 # 自动提取封面和注入 HTML
 # ============================================================
 def extract_cover_from_md(md_rel_path):
-    """从 md 文件中提取第一张图片作为封面"""
     p = ROOT / md_rel_path
     if not p.exists(): return None
     try:
         text = p.read_text(encoding='utf-8')
         m = re.search(r'!\[[^\]]*\]\(\s*([^)\s]+?)(?:\s+["\'][^"\']*["\'])?\s*\)', text)
         if not m: return None
-        
         url = m.group(1).strip()
         url = re.sub(r'^<|>$', '', url)
         url = re.sub(r'^["\']|["\']$', '', url)
-        
         if re.match(r'^(https?:)?//', url) or url.startswith('/') or url.startswith('data:'):
             return url
-            
         url = url.replace('./', '')
         md_dir = md_rel_path.rsplit('/', 1)[0]
         return f"{md_dir}/{url}"
-    except Exception as e:
-        print(f"  [警告] 提取封面失败 ({md_rel_path}): {e}")
+    except Exception:
         return None
 
 def inject_html_components():
-    """自动把顶栏和页脚注入到各个 HTML 文件中"""
     theme_script = """
   <script>
     (function () {
@@ -132,7 +157,6 @@ def inject_html_components():
       <button class="theme-btn" data-theme-value="system" title="跟随系统" aria-label="跟随系统"><i class="fas fa-desktop"></i></button>
     </div>
 """
-    
     nav_index = f"""
   <nav class="topbar" id="topbar">
     <div class="nav-brand">胖宝基地</div>
@@ -148,7 +172,6 @@ def inject_html_components():
     {nav_common}
   </nav>
 """
-
     nav_article = f"""
   <nav class="topbar" id="topbar">
     <a class="back-link" href="index.html" aria-label="返回首页">
@@ -166,7 +189,6 @@ def inject_html_components():
     {nav_common}
   </nav>
 """
-
     nav_about = f"""
   <nav class="topbar">
     <a class="nav-brand" href="index.html" style="text-decoration:none;">胖宝基地</a>
@@ -183,39 +205,27 @@ def inject_html_components():
     {nav_common}
   </nav>
 """
-
     footer_html = """
     <footer class="footer">
       &copy; 2026 <span>PangBao</span> · powered by 画画力一族
     </footer>
 """
-
     def replace_blocks(filepath, nav_html):
         p = ROOT / filepath
         if not p.exists(): return
         content = p.read_text(encoding='utf-8')
-        
-        content = re.sub(
-            r'<script>\s*\(function\s*\(\)\s*\{.*?theme-preference.*?\}\)\(\);\s*</script>',
-            theme_script.strip(),
-            content,
-            flags=re.DOTALL
-        )
+        content = re.sub(r'<script>\s*\(function\s*\(\)\s*\{.*?theme-preference.*?\}\)\(\);\s*</script>', theme_script.strip(), content, flags=re.DOTALL)
         content = re.sub(r'<nav class="topbar".*?</nav>', nav_html.strip(), content, flags=re.DOTALL)
         content = re.sub(r'<footer class="footer".*?</footer>', footer_html.strip(), content, flags=re.DOTALL)
-        
         p.write_text(content, encoding='utf-8')
 
     replace_blocks('index.html', nav_index)
     replace_blocks('article.html', nav_article)
     replace_blocks('about.html', nav_about)
-    print('  ✓ 已重新生成 HTML 公共组件 (Nav, Footer)')
 
 def sync_all():
-    """同步数据并注入 HTML"""
     articles = load_json(ARTICLES_JSON)
     artworks = load_json(ARTWORKS_JSON)
-
     updated = False
     for item in articles:
         if 'cover' not in item or not item['cover']:
@@ -223,13 +233,9 @@ def sync_all():
             if cover:
                 item['cover'] = cover
                 updated = True
-    
-    if updated:
-        save_json(ARTICLES_JSON, articles)
-
+    if updated: save_json(ARTICLES_JSON, articles)
     _write_js(ARTICLES_JS, 'articles', articles)
     _write_js(ARTWORKS_JS, 'artworks', artworks)
-    
     inject_html_components()
 
 def today(): return date.today().isoformat()
@@ -240,17 +246,15 @@ def prompt(msg, default=''):
         val = input(label).strip()
         return val if val else default
     except KeyboardInterrupt:
-        print()  # 换行
-        raise  # 将中断信号向上抛出，由菜单层接管
+        print()
+        raise
 
 def ask_choice(msg, max_n, allow_cancel=True):
     while True:
-        try:
-            raw = input(msg).strip()
-        except KeyboardInterrupt:
+        try: raw = input(msg).strip()
+        except KeyboardInterrupt: 
             print()
             raise
-            
         if allow_cancel and raw == '': return None
         if raw.isdigit():
             n = int(raw)
@@ -259,8 +263,7 @@ def ask_choice(msg, max_n, allow_cancel=True):
 
 def pause(msg='按回车返回菜单…'):
     try: input(f'\n  {msg}')
-    except (EOFError, KeyboardInterrupt): 
-        print()
+    except (EOFError, KeyboardInterrupt): print()
 
 def list_art_images():
     if not ART_DIR.exists(): return []
@@ -286,9 +289,7 @@ def _try_migrate(js_path, json_path, varname):
         js = re.sub(r"'((?:[^'\\]|\\.)*)'", lambda mm: json.dumps(mm.group(1)), js)
         data = json.loads(js)
         save_json(json_path, data)
-        print(f'  ✓ 已从 {js_path.name} 迁移 {len(data)} 条 → {json_path.relative_to(ROOT)}')
-    except Exception as e:
-        print(f'  [提示] 未能自动迁移 {js_path.name}（{e}）')
+    except Exception: pass
 
 # ============================================================
 # 业务逻辑
@@ -308,7 +309,6 @@ def add_article():
     if not post_md.exists():
         tpl = f'---\ntitle: {title}\ndate: {d}\n---\n\n# {title}\n\n（在这里写正文…）\n'
         post_md.write_text(tpl, encoding='utf-8')
-        print(f'  ✓ 已创建文章：essays/{folder}/{folder}.md')
     item = {'title': title, 'date': d, 'md': f'essays/{folder}/{folder}.md'}
     if desc: item['desc'] = desc
     articles.insert(0, item)
@@ -337,23 +337,40 @@ def edit_article():
     save_json(ARTICLES_JSON, articles)
     print('  ✓ 已保存（数据源已更新，记得同步）')
 
+# ★ 修改：支持批量删除文章
 def delete_article():
     articles = load_json(ARTICLES_JSON)
     if not articles: return print('\n  没有文章可删除')
     list_articles()
-    n = ask_choice(f'\n  选择要删除的文章编号 (1-{len(articles)})：', len(articles))
-    if n is None: return
-    item = articles[n - 1]
-    if prompt(f'  确认删除「{item.get("title")}」？(y/N)', 'N').lower() != 'y': return
-    articles.pop(n - 1)
+    
+    print('\n  提示：支持输入 1,3,5 或 1-5 或 all 进行批量删除')
+    raw = prompt('选择要删除的编号（回车取消）')
+    if not raw: return
+    
+    indexes = parse_multi_choice(raw, len(articles))
+    if not indexes: return print('  未选择有效编号，已取消')
+    
+    print(f'\n  即将删除以下 {len(indexes)} 篇文章：')
+    for idx in reversed(indexes):  # 倒序显示，符合原列表顺序
+        print(f'    - {articles[idx-1].get("title", "未命名")}')
+        
+    if prompt('  确认删除？(y/N)', 'N').lower() != 'y': return
+    
+    # 询问是否删除物理文件
+    del_files = prompt('  是否同时删除对应的本地 md 文件夹？(y/N)', 'N').lower() == 'y'
+    
+    # 倒序删除，防止索引塌陷
+    for idx in indexes:
+        item = articles.pop(idx - 1)
+        if del_files:
+            md = item.get('md', '')
+            if md:
+                post_dir = (ROOT / md).parent
+                if post_dir.resolve().parent == ESSAYS_DIR.resolve() and post_dir.exists():
+                    shutil.rmtree(post_dir)
+                    
     save_json(ARTICLES_JSON, articles)
-    md = item.get('md', '')
-    if md:
-        post_dir = (ROOT / md).parent
-        if post_dir.resolve().parent == ESSAYS_DIR.resolve():
-            if prompt(f'  是否删除整个文件夹 essays/{post_dir.name}/ ？(y/N)', 'N').lower() == 'y':
-                shutil.rmtree(post_dir)
-    print('  ✓ 已移除（记得同步）')
+    print(f'  ✓ 已移除 {len(indexes)} 篇文章（记得同步）')
 
 def migrate_to_folders():
     print('\n--- 迁移为文件夹结构 ---')
@@ -421,16 +438,31 @@ def edit_artwork():
     save_json(ARTWORKS_JSON, artworks)
     print('  ✓ 已保存（记得同步）')
 
+# ★ 修改：支持批量删除画作
 def delete_artwork():
     artworks = load_json(ARTWORKS_JSON)
     if not artworks: return
     list_artworks()
-    n = ask_choice(f'\n  选择编号 (1-{len(artworks)})：', len(artworks))
-    if n is None: return
+    
+    print('\n  提示：支持输入 1,3,5 或 1-5 或 all 进行批量删除')
+    raw = prompt('选择要删除的编号（回车取消）')
+    if not raw: return
+    
+    indexes = parse_multi_choice(raw, len(artworks))
+    if not indexes: return print('  未选择有效编号，已取消')
+    
+    print(f'\n  即将删除以下 {len(indexes)} 张画作：')
+    for idx in reversed(indexes):
+        print(f'    - {artworks[idx-1].get("title", "未命名")}')
+        
     if prompt('  确认删除？(y/N)', 'N').lower() != 'y': return
-    artworks.pop(n - 1)
+    
+    # 倒序删除，防止索引塌陷
+    for idx in indexes:
+        artworks.pop(idx - 1)
+        
     save_json(ARTWORKS_JSON, artworks)
-    print('  ✓ 已移除（记得同步）')
+    print(f'  ✓ 已移除 {len(indexes)} 张画作（记得同步）')
 
 def cmd_sync():
     sync_all()
@@ -461,26 +493,18 @@ def run_menu():
         for key, label, _ in MENU_ITEMS: print(f'  {key}. {label}')
         print('  0. 退出\n' + '=' * 44)
         
-        try: 
-            choice = input('  请选择：').strip()
-        except (EOFError, KeyboardInterrupt): 
-            return print('\n  拜拜 👋')
+        try: choice = input('  请选择：').strip()
+        except (EOFError, KeyboardInterrupt): return print('\n  拜拜 👋')
             
         if choice == '0': return print('  拜拜 👋')
         
         action = next((a for k, _, a in MENU_ITEMS if k == choice.lower()), None)
         if action:
-            try: 
-                action()
-            except KeyboardInterrupt:
-                # 拦截 Ctrl+C，不让它导致程序崩溃
-                print('\n  已取消当前操作')
-            except Exception as e: 
-                print(f'\n  [错误] {e}')
-            
+            try: action()
+            except KeyboardInterrupt: print('\n  已取消当前操作')
+            except Exception as e: print(f'\n  [错误] {e}')
             pause()
-        else: 
-            print('  无效选项')
+        else: print('  无效选项')
 
 CLI_COMMANDS = {'sync': cmd_sync, 's': cmd_sync, 'list': cmd_list, 'ls': cmd_list, 'menu': run_menu}
 
@@ -496,9 +520,7 @@ def main():
     run_menu()
 
 if __name__ == '__main__':
-    try:
-        main()
+    try: main()
     except KeyboardInterrupt:
-        # 最外层兜底，如果按了 Ctrl+C 直接退出
         print('\n  强制退出，拜拜 👋')
         sys.exit(0)
